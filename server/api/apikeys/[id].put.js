@@ -1,0 +1,84 @@
+import db from '../../utils/db.js'
+import { v4 as uuidv4 } from 'uuid'
+import { requireAdmin } from '../../utils/auth.js'
+
+export default defineEventHandler(async (event) => {
+  try {
+    await requireAdmin(event)
+    const id = getRouterParam(event, 'id')
+    if (!id) {
+      throw createError({
+        statusCode: 400,
+        message: '缺少 API Key ID'
+      })
+    }
+
+    const apiKey = await db.apikeys.findOne({ _id: id })
+    if (!apiKey) {
+      throw createError({
+        statusCode: 404,
+        message: 'API Key 不存在'
+      })
+    }
+
+    const body = await readBody(event)
+    const { name, enabled, regenerate, ownerUserId } = body
+    const updateData = {
+      updatedAt: new Date().toISOString()
+    }
+
+    if (name !== undefined) {
+      const nextName = String(name || '').trim()
+      if (!nextName) {
+        throw createError({ statusCode: 400, message: 'API Key 名称不能为空' })
+      }
+      updateData.name = nextName
+    }
+
+    if (enabled !== undefined) {
+      updateData.enabled = enabled === true
+    }
+
+    if (ownerUserId !== undefined) {
+      const ownerUser = await db.users.findOne({ _id: String(ownerUserId), status: { $ne: 'disabled' } })
+      if (!ownerUser) {
+        throw createError({ statusCode: 400, message: '归属用户不存在或已被禁用' })
+      }
+      updateData.ownerUserId = ownerUser._id
+      updateData.ownerUsername = ownerUser.username
+    }
+
+    if (regenerate) {
+      updateData.key = `sk-${uuidv4().replace(/-/g, '')}`
+    }
+
+    await db.apikeys.update({ _id: id }, { $set: updateData })
+    const updatedKey = await db.apikeys.findOne({ _id: id })
+
+    return {
+      success: true,
+      message: 'API Key 更新成功',
+      data: {
+        id: updatedKey._id,
+        key: updatedKey.key,
+        name: updatedKey.name,
+        isDefault: updatedKey.isDefault,
+        enabled: updatedKey.enabled,
+        ownerUserId: updatedKey.ownerUserId || null,
+        ownerUsername: updatedKey.ownerUsername || null,
+        createdAt: updatedKey.createdAt,
+        updatedAt: updatedKey.updatedAt
+      }
+    }
+  } catch (error) {
+    if (error.statusCode) {
+      throw error
+    }
+
+    console.error('[ApiKeys] 更新 API Key 失败:', error)
+    throw createError({
+      statusCode: 500,
+      message: '更新 API Key 失败'
+    })
+  }
+})

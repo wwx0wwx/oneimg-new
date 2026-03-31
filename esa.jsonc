@@ -1,0 +1,9 @@
+{
+  "name": "oneimg",
+  "installCommand": "pnpm install",
+  "buildCommand": "pnpm run generate",
+  "assets": {
+    "directory": "./.output/public",
+    "notFoundStrategy": "singlePageApplication"
+  }
+}
