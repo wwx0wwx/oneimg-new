@@ -1,5 +1,25 @@
 ## Changelog
 
+### 1.3.1
+
+**Legacy cleanup（L1-L19 遗留问题清零）:**
+
+- **配置合并（L1）**：移除 `publicApiConfig` 中的死字段 `enabled`/`allowedFormats`/`maxFileSize`——服务端校验从未使用它们（真实开关在媒体策略）。管理页"启用公共 API"死开关与重复的"最大文件大小"输入框一并删除，API 读写兼容清理
+- **URL 导入加固（L2/L5）**：下载改为**固定已校验 IP 的流式连接**（消灭 DNS rebinding TOCTOU 窗口），流式计数超过 100MB 立即中断（不再整包读入内存）；单个/批量（SSE）接口服务端强制单次 ≤20 个 URL
+- **通知密钥治理（L3）**：Telegram Token/邮箱密码/Server酱 SendKey 以 AES-256-GCM 加密落库（主密钥从 `ONEIMG_SECRET_KEY` 或 jwtSecret 派生），管理端 GET 只返回尾 4 位脱敏；提交脱敏占位时自动保留库中原值
+- **登录注入与信息泄露（L4）**：登录入参强制字符串类型（堵 NeDB 查询操作符注入），500 不再回显内部错误文本
+- **出站统一防护（L7）**：Webhook 通知/测试与内容安全检测服务地址复用与 URL 导入相同的私网拦截标准，全部出站请求增加 15-30s 超时
+- **性能（L8/L11/L12）**：媒体列表/违规列表/IP 黑名单的过滤排序分页下推存储层（不再全表读入内存）；`verifyToken` 单次查库并携带完整用户字段（此前每请求两次）；审核队列空闲时停止 5 秒轮询，新任务到达再启动
+- **权限感知（L10）**：API/统计/通知导航与页面仅管理员可见（前端引导 + 服务端 403 兜底）；设置页的应用/公告区块仅管理员可见，普通用户仅见账户设置
+- **强制改密（L16）**：初始密码未修改的账户登录后自动引导至设置页改密
+- **防盗链伪装开关化（L13）**：URL 导入默认不再伪造目标站 Referer/Origin，需 `ONEIMG_SPOOF_REFERER=1` 显式开启
+- **隐私披露（L14）**：管理页与 README 显著说明"内容安全检测会把图片发送到第三方"；README 新增隐私与出站行为章节及环境变量参考
+- **文档对齐（L15）**：nsfw_detector 适配器注释与实际解析结构对齐，并说明自建服务需要返回的响应结构
+- **全站 CSP（L18）**：新增增量式 Content-Security-Policy（object-src/base-uri/form-action/frame-ancestors 等实际防护；script-src 暂含 unsafe-inline，nonce 方案列入后续）
+- **siteUrl 防护（L19）**：未配置 siteUrl 时清洗 `x-forwarded-proto`/`host` 头并输出生产告警；README 强制要求生产配置固定 siteUrl
+- **依赖更新（L17）**：`pnpm update` 范围内升级传递依赖并复核
+- **死代码清理（L9）**：移除 api.vue 中无引用的黑名单 UI 逻辑与 media.js 未使用导出
+
 ### 1.3.0
 
 **Security Fixes:**

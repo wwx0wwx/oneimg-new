@@ -23,9 +23,16 @@ export async function resolveSiteUrl(event) {
   const appSettingsDoc = await db.settings.findOne({ key: 'appSettings' })
   let siteUrl = appSettingsDoc?.value?.siteUrl || ''
   if (!siteUrl) {
-    const protocol = getHeader(event, 'x-forwarded-proto') || 'http'
-    const host = getHeader(event, 'host') || 'localhost'
+    // 回退到请求头推断（首次部署未配置 siteUrl 时使用）。
+    // 注意：x-forwarded-proto/host 仅在可信反代后有意义；生产环境强烈
+    // 建议在后台配置固定 siteUrl，避免 Host 头投毒影响生成的外链。
+    const protocolRaw = getHeader(event, 'x-forwarded-proto') || 'http'
+    const protocol = ['http', 'https'].includes(protocolRaw) ? protocolRaw : 'http'
+    const host = String(getHeader(event, 'host') || 'localhost').replace(/[^a-zA-Z0-9.:-]/g, '')
     siteUrl = `${protocol}://${host}`
+    if (process.env.NODE_ENV === 'production') {
+      console.warn('[SiteUrl] 未配置 siteUrl，正在使用请求头推断（建议在后台设置中配置固定站点 URL）')
+    }
   }
   return siteUrl.replace(/\/+$/, '')
 }
@@ -188,16 +195,34 @@ export async function createMediaRecord({
 }
 
 export async function listVisibleMedia({ user = null, page = 1, limit = 20 }) {
-  const all = (await db.images.find({ isDeleted: false, isNsfw: { $ne: true } }))
-    .map(item => toMediaRecord(item))
-    .filter(item => canViewMedia(user, item))
-    .sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt))
+  // 过滤/排序/分页下推到存储层（避免全表读入内存）。
+  // 可见性与 canViewMedia 的语义保持一致：
+  // - 匿名：仅公开且未删除/未违规
+  // - 普通用户：公开 + 自己的
+  // - 管理员：全部未删除未违规
+  const base = { isDeleted: false, isNsfw: { $ne: true } }
+  let query
+  if (!user) {
+    query = { ...base, visibility: { $ne: 'private' } }
+  } else if (isAdminUser(user)) {
+    query = base
+  } else {
+    query = { ...base, $or: [{ visibility: { $ne: 'private' } }, { ownerId: user._id }] }
+  }
 
-  const total = all.length
-  const start = (page - 1) * limit
+  page = Math.max(1, parseInt(page) || 1)
+  limit = Math.min(100, Math.max(1, parseInt(limit) || 20))
+
+  const total = await db.images.count(query)
+  const items = await db.images.findPage(query, {
+    sort: { uploadedAt: -1 },
+    skip: (page - 1) * limit,
+    limit
+  })
+
   return {
     total,
-    items: all.slice(start, start + limit)
+    items: items.map(item => toMediaRecord(item))
   }
 }
 

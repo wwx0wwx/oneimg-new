@@ -9,6 +9,8 @@ import db from './db.js'
 import TelegramBot from 'node-telegram-bot-api'
 import nodemailer from 'nodemailer'
 import { getMediaPath } from './media.js'
+import { encryptSecret, decryptSecret, maskSecret } from './secretBox.js'
+import { assertSafeOutboundUrl } from './netGuard.js'
 
 // 通知类型枚举
 export const NOTIFICATION_TYPES = {
@@ -83,8 +85,18 @@ export async function getNotificationConfig() {
   try {
     const configDoc = await db.settings.findOne({ key: 'notificationConfig' })
     if (configDoc?.value) {
-      // 合并默认配置，确保新增字段有默认值
+      // 合并默认配置，确保新增字段有默认值；敏感字段解密后供发送方使用
       const defaultConfig = getDefaultNotificationConfig()
+      const decrypted = {
+        ...configDoc.value,
+        telegram: { ...configDoc.value.telegram },
+        email: { ...configDoc.value.email },
+        serverchan: { ...configDoc.value.serverchan }
+      }
+      decrypted.telegram.token = await decryptSecret(decrypted.telegram.token || '')
+      decrypted.email.pass = await decryptSecret(decrypted.email.pass || '')
+      decrypted.serverchan.sendKey = await decryptSecret(decrypted.serverchan.sendKey || '')
+      configDoc.value = decrypted
       return {
         ...defaultConfig,
         ...configDoc.value,
@@ -122,6 +134,15 @@ export async function getNotificationConfig() {
  */
 export async function saveNotificationConfig(config) {
   try {
+    // 敏感字段加密落库（AES-256-GCM，主密钥派生自 jwtSecret/环境变量）
+    const encrypted = JSON.parse(JSON.stringify(config))
+    encrypted.telegram = { ...encrypted.telegram }
+    encrypted.email = { ...encrypted.email }
+    encrypted.serverchan = { ...encrypted.serverchan }
+    encrypted.telegram.token = await encryptSecret(encrypted.telegram.token || '')
+    encrypted.email.pass = await encryptSecret(encrypted.email.pass || '')
+    encrypted.serverchan.sendKey = await encryptSecret(encrypted.serverchan.sendKey || '')
+    config = encrypted
     await db.settings.update(
       { key: 'notificationConfig' },
       {
@@ -136,6 +157,19 @@ export async function saveNotificationConfig(config) {
   } catch (error) {
     console.error('[Notification] 保存配置失败:', error)
     return { success: false, error: error.message }
+  }
+}
+
+/**
+ * 获取脱敏后的通知配置（管理端展示用）：敏感字段只保留尾 4 位
+ */
+export async function getNotificationConfigMasked() {
+  const config = await getNotificationConfig()
+  return {
+    ...config,
+    telegram: { ...config.telegram, token: maskSecret(config.telegram.token) },
+    email: { ...config.email, pass: maskSecret(config.email.pass) },
+    serverchan: { ...config.serverchan, sendKey: maskSecret(config.serverchan.sendKey) }
   }
 }
 
@@ -184,11 +218,13 @@ async function sendWebhookNotification(config, payload) {
       ...webhook.headers
     }
 
-    // 发送请求
+    // 出站安全校验（拒绝内网/回环目标）+ 15s 超时
+    await assertSafeOutboundUrl(webhook.url)
     const response = await fetch(webhook.url, {
       method: webhook.method || 'POST',
       headers,
-      body
+      body,
+      signal: AbortSignal.timeout(15000)
     })
 
     if (!response.ok) {
@@ -459,6 +495,19 @@ function generateEmailTemplate(content) {
 }
 
 /**
+ * HTML 转义：邮件模板中的动态字段（标题/消息/文件名等）一律转义，
+ * 防止媒体原始名等外部可控内容注入邮件 HTML
+ */
+function escapeHtmlText(value = '') {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/**
  * 发送 Email 通知
  */
 async function sendEmailNotification(config, payload) {
@@ -488,19 +537,19 @@ async function sendEmailNotification(config, payload) {
     // 构建邮件内容
     let htmlContent = `
       <div class="header">
-        <h1>${payload.title}</h1>
+        <h1>${escapeHtmlText(payload.title)}</h1>
       </div>
       <div class="content">
-        <p>${payload.message}</p>
+        <p>${escapeHtmlText(payload.message)}</p>
     `
 
     // 如果有有效的图片URL，在邮件中显示图片
     if (hasValidImageUrl) {
       htmlContent += `
         <div style="margin-top: 20px; text-align: center;">
-          <img src="${imageUrl}" alt="上传的图片" style="max-width: 100%; max-height: 400px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+          <img src="${escapeHtmlText(imageUrl)}" alt="上传的图片" style="max-width: 100%; max-height: 400px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
           <p style="margin-top: 10px; font-size: 12px; color: #666;">
-            <a href="${imageUrl}" target="_blank" style="color: #007bff;">点击查看原图</a>
+            <a href="${escapeHtmlText(imageUrl)}" target="_blank" style="color: #007bff;">点击查看原图</a>
           </p>
         </div>
       `
@@ -515,8 +564,8 @@ async function sendEmailNotification(config, payload) {
         const displayValue = typeof value === 'object' ? JSON.stringify(value) : value
         htmlContent += `
           <div class="info-item">
-            <span class="info-label">${key}:</span>
-            <span class="info-value">${displayValue}</span>
+            <span class="info-label">${escapeHtmlText(key)}:</span>
+            <span class="info-value">${escapeHtmlText(displayValue)}</span>
           </div>
         `
       }
@@ -742,6 +791,9 @@ export async function testWebhook(webhookConfig) {
       data: { test: true }
     }
 
+    // 出站安全校验 + 超时
+    await assertSafeOutboundUrl(webhookConfig.url)
+
     // 替换模板变量
     let body = webhookConfig.bodyTemplate
     body = replaceTemplateVariables(body, testPayload)
@@ -754,7 +806,8 @@ export async function testWebhook(webhookConfig) {
     const response = await fetch(webhookConfig.url, {
       method: webhookConfig.method || 'POST',
       headers,
-      body
+      body,
+      signal: AbortSignal.timeout(15000)
     })
 
     if (!response.ok) {

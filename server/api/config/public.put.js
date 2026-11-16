@@ -3,9 +3,8 @@ import { requireAdmin } from '../../utils/auth.js'
 import { validateProviderConfig, getDefaultContentSafetyConfig } from '../../utils/moderation.js'
 
 const DEFAULT_PUBLIC_CONFIG = {
-  enabled: false,
-  allowedFormats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'svg', 'bmp', 'ico', 'apng', 'tiff', 'mp4', 'webm', 'mov'],
-  maxFileSize: 10 * 1024 * 1024,
+  // enabled/allowedFormats/maxFileSize 为历史死字段，已于 v1.3.1 移除：
+  // 匿名上传开关、格式白名单、大小限额统一由 mediaConfig（媒体策略）管理
   enableCompression: false,
   compressionQuality: 80,
   convertToWebp: false,
@@ -68,9 +67,6 @@ export default defineEventHandler(async (event) => {
 
     const configValue = {
       ...previousValue,
-      enabled: body.enabled !== undefined ? body.enabled === true : previousValue.enabled,
-      allowedFormats: Array.isArray(body.allowedFormats) && body.allowedFormats.length > 0 ? body.allowedFormats : previousValue.allowedFormats,
-      maxFileSize: Number(body.maxFileSize) > 0 ? Number(body.maxFileSize) : previousValue.maxFileSize,
       enableCompression: body.enableCompression === true,
       compressionQuality: Number(body.compressionQuality) > 0 ? Number(body.compressionQuality) : previousValue.compressionQuality,
       convertToWebp: finalConvertToWebp,
@@ -79,6 +75,11 @@ export default defineEventHandler(async (event) => {
       allowConcurrent: body.allowConcurrent === true,
       contentSafety: contentSafetyConfig
     }
+
+    // 历史死字段彻底出清（旧库文档可能经 previousValue 带回）
+    delete configValue.enabled
+    delete configValue.allowedFormats
+    delete configValue.maxFileSize
 
     await db.settings.update(
       { key: 'publicApiConfig' },

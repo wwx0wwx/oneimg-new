@@ -1,4 +1,7 @@
-// 生成随机请求头，用于绕过防盗链检测
+// 生成随机请求头（用于 URL 导入下载）。
+// 防盗链绕过（伪造目标站 Referer/Origin）默认关闭：
+// 该行为在部分目标站点所属司法辖区可能构成规避访问控制，仅当部署者
+// 明确设置 ONEIMG_SPOOF_REFERER=1 自担责任时启用。
 export function getRandomHeaders(imageUrl) {
   // 随机浏览器版本
   const chromeVersions = ['120.0.0.0', '121.0.0.0', '122.0.0.0', '123.0.0.0', '119.0.0.0']
@@ -61,9 +64,13 @@ export function getRandomHeaders(imageUrl) {
     'Sec-Fetch-Dest': 'image',
     'Sec-Fetch-Mode': 'no-cors',
     'Sec-Fetch-Site': 'cross-site',
-    // 使用图片URL的origin作为Referer，绕过防盗链
-    'Referer': imageUrl.origin + '/',
-    'Origin': imageUrl.origin
+    ...(process.env.ONEIMG_SPOOF_REFERER === '1'
+      ? {
+          // 使用图片URL的origin作为Referer，绕过防盗链（需 ONEIMG_SPOOF_REFERER=1 显式开启）
+          'Referer': imageUrl.origin + '/',
+          'Origin': imageUrl.origin
+        }
+      : {})
   }
 
   // 只有非 Firefox 浏览器才添加 Sec-Ch-Ua 头

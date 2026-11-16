@@ -2,7 +2,7 @@ import db from '../utils/db.js'
 import { unlink } from 'fs/promises'
 import { existsSync } from 'fs'
 import { startProcessor as startModerationProcessor, retryFailedTasks } from '../utils/moderationQueue.js'
-import { getUploadsDirPath, getMediaPath } from '../utils/media.js'
+import { getMediaPath } from '../utils/media.js'
 
 // 定时任务间隔（毫秒）
 const RETRY_FAILED_TASKS_INTERVAL = 60 * 60 * 1000  // 1 小时

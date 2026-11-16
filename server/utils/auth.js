@@ -31,10 +31,11 @@ export function sanitizeUser(user = {}) {
 export async function getAuthUser(event) {
   const token = extractToken(event)
   if (!token) return null
+  // verifyToken 内部已完成用户查询（含禁用状态与 tokenVersion 撤销校验）
+  // 并附带常用用户字段，这里直接复用，避免每个请求查两次库
   const decoded = await verifyToken(token)
   if (!decoded?.userId) return null
-  const user = await db.users.findOne({ _id: decoded.userId, status: { $ne: 'disabled' } })
-  return user || null
+  return decoded
 }
 
 export async function requireAuthUser(event) {

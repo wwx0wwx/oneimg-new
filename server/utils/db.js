@@ -57,6 +57,15 @@ const ipBlacklist = new Datastore({
 const promisify = (db) => ({
   findOne: (query) => db.findOneAsync(query),
   find: (query) => db.findAsync(query),
+  // 分页查询（排序/跳过/限量下推到存储层，避免全表读入内存再切片）
+  findPage: (query, { sort, skip = 0, limit = 0 } = {}) =>
+    new Promise((resolve, reject) => {
+      let cursor = db.find(query)
+      if (sort) cursor = cursor.sort(sort)
+      if (skip > 0) cursor = cursor.skip(skip)
+      if (limit > 0) cursor = cursor.limit(limit)
+      cursor.exec((err, docs) => (err ? reject(err) : resolve(docs)))
+    }),
   insert: (doc) => db.insertAsync(doc),
   update: (query, update, options = {}) => db.updateAsync(query, update, options),
   remove: (query, options = {}) => db.removeAsync(query, options),

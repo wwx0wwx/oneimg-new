@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import { v4 as uuidv4 } from 'uuid'
 import { getDefaultContentSafetyConfig } from '../utils/moderation.js'
-import { saveMediaConfig, DEFAULT_MEDIA_CONFIG } from '../utils/mediaConfig.js'
+import { saveMediaConfig } from '../utils/mediaConfig.js'
 
 async function initDefaultUser() {
   const existingAdmin = await db.users.findOne({ role: 'admin' })
@@ -73,9 +73,8 @@ async function initPublicApiConfig() {
       _id: uuidv4(),
       key: 'publicApiConfig',
       value: {
-        enabled: false,
-        allowedFormats: DEFAULT_MEDIA_CONFIG.allowedExtensions,
-        maxFileSize: DEFAULT_MEDIA_CONFIG.anonymousMaxFileSize,
+        // enabled/allowedFormats/maxFileSize 为历史死字段，v1.3.1 已移除：
+        // 匿名上传开关/格式/大小统一由 mediaConfig（媒体策略）管理
         enableCompression: false,
         compressionQuality: 80,
         convertToWebp: false,

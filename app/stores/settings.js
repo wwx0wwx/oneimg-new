@@ -20,9 +20,6 @@ export const useSettingsStore = defineStore('settings', {
       }
     },
     publicApiConfig: {
-      enabled: true,
-      allowedFormats: DEFAULT_MEDIA_EXTENSIONS,
-      maxFileSize: 10 * 1024 * 1024,
       enableCompression: false,
       compressionQuality: 80,
       convertToWebp: false,

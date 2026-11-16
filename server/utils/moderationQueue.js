@@ -266,8 +266,13 @@ async function processQueue() {
     const task = await getNextPendingTask()
 
     if (!task) {
-      // 没有待处理的任务
+      // 队列空闲：停止 5s 轮询（新任务由 createModerationTask 重启处理器，
+      // 每小时的失败重试定时器也会按需重启），避免空转查库
       isProcessing = false
+      if (processorInterval) {
+        clearInterval(processorInterval)
+        processorInterval = null
+      }
       return
     }
 

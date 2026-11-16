@@ -12,11 +12,13 @@ export default defineEventHandler(async (event) => {
     const skip = (page - 1) * limit
     const queryCondition = { isNsfw: true }
     const total = await db.images.count(queryCondition)
-    let mediaList = await db.images.find(queryCondition)
     const siteUrl = await resolveSiteUrl(event)
-
-    mediaList.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt))
-    mediaList = mediaList.slice(skip, skip + limit)
+    // 排序/分页下推存储层
+    const mediaList = await db.images.findPage(queryCondition, {
+      sort: { uploadedAt: -1 },
+      skip,
+      limit
+    })
 
     const items = mediaList.map(item => ({
       ...buildMediaResponse(item, siteUrl),

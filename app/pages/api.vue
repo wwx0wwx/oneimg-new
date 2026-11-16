@@ -18,27 +18,9 @@
 
     <div v-show="activeTab === 'public'" class="space-y-6">
       <div class="card p-6">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">公共 API 配置 <span class="text-sm font-normal text-gray-500 dark:text-gray-400">- 匿名上传使用</span></h2>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">匿名上传配置 <span class="text-sm font-normal text-gray-500 dark:text-gray-400">- 匿名上传行为与内容安全</span></h2>
 
         <form @submit.prevent="savePublicConfig" class="space-y-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">启用公共 API</label>
-              <p class="text-xs text-gray-500 dark:text-gray-400">允许匿名访客上传公开媒体</p>
-            </div>
-            <button
-              type="button"
-              @click="publicConfig.enabled = !publicConfig.enabled"
-              class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-              :class="publicConfig.enabled ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'"
-            >
-              <span
-                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-                :class="publicConfig.enabled ? 'translate-x-6' : 'translate-x-1'"
-              />
-            </button>
-          </div>
-
           <div class="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 space-y-4">
             <div class="flex items-center justify-between">
               <div>
@@ -103,16 +85,16 @@
               </select>
             </div>
 
+            <p class="text-xs text-orange-600 dark:text-orange-400">
+              ⚠️ 隐私提示：内容安全检测开启后，上传的图片会被发送到所配置的第三方检测服务（如 nsfwdet.com / elysiatools.com）。
+              涉及隐私的部署请关闭该功能或改用自建检测服务（nsfw_detector）。
+            </p>
+
             <div>
               <button type="button" class="btn-primary" :disabled="saving" @click="saveMediaPolicy">
                 {{ saving ? '保存中...' : '保存媒体策略' }}
               </button>
             </div>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">最大文件大小 (MB)</label>
-            <input type="number" v-model.number="publicConfigMaxSizeMB" min="1" max="100" class="input w-32" />
           </div>
 
           <div class="space-y-3">
@@ -527,7 +509,8 @@ import { useToastStore } from '~/stores/toast'
 import { copyToClipboard } from '../utils/clipboard'
 
 definePageMeta({
-  middleware: 'auth'
+  middleware: 'auth',
+  adminOnly: true
 })
 
 const authStore = useAuthStore()
@@ -562,13 +545,6 @@ const userForm = reactive({
   password: ''
 })
 
-const blacklist = ref([])
-const blacklistPagination = ref({ page: 1, limit: 20, total: 0, totalPages: 0 })
-const loadingBlacklist = ref(false)
-const newBlacklistIp = ref('')
-const newBlacklistReason = ref('')
-const addingToBlacklist = ref(false)
-
 const defaultContentSafetyConfig = {
   enabled: false,
   provider: 'elysiatools',
@@ -596,9 +572,6 @@ const defaultContentSafetyConfig = {
 }
 
 const publicConfig = reactive({
-  enabled: true,
-  allowedFormats: [...availableFormats],
-  maxFileSize: 10 * 1024 * 1024,
   enableCompression: false,
   compressionQuality: 80,
   convertToWebp: false,
@@ -629,10 +602,6 @@ const mediaConfig = reactive({
 const apiKeys = computed(() => settingsStore.apiKeys)
 const bindableUsers = computed(() => users.value.filter(user => user.status === 'active'))
 
-const publicConfigMaxSizeMB = computed({
-  get: () => Math.round(publicConfig.maxFileSize / (1024 * 1024)),
-  set: (val) => { publicConfig.maxFileSize = val * 1024 * 1024 }
-})
 const privateConfigMaxSizeMB = computed({
   get: () => Math.round(privateConfig.maxFileSize / (1024 * 1024)),
   set: (val) => { privateConfig.maxFileSize = val * 1024 * 1024 }
@@ -736,9 +705,6 @@ async function savePublicConfig() {
   saving.value = true
   try {
     const result = await settingsStore.savePublicApiConfig({
-      enabled: publicConfig.enabled,
-      allowedFormats: publicConfig.allowedFormats,
-      maxFileSize: publicConfig.maxFileSize,
       enableCompression: publicConfig.enableCompression,
       compressionQuality: publicConfig.compressionQuality,
       convertToWebp: publicConfig.convertToWebp,
@@ -899,73 +865,6 @@ async function deleteApiKey() {
   keyToDelete.value = null
 }
 
-async function fetchBlacklist(page = 1) {
-  loadingBlacklist.value = true
-  try {
-    const response = await $fetch('/api/blacklist', {
-      params: { page, limit: 20 },
-      headers: authStore.authHeader
-    })
-
-    if (response.success && response.data) {
-      blacklist.value = response.data.records
-      blacklistPagination.value = response.data.pagination
-    }
-  } catch (error) {
-    toastStore.error('获取黑名单失败')
-  } finally {
-    loadingBlacklist.value = false
-  }
-}
-
-async function addToBlacklistManual() {
-  if (!newBlacklistIp.value.trim()) {
-    toastStore.error('请输入 IP 地址')
-    return
-  }
-
-  addingToBlacklist.value = true
-  try {
-    const response = await $fetch('/api/blacklist', {
-      method: 'POST',
-      headers: authStore.authHeader,
-      body: {
-        ip: newBlacklistIp.value.trim(),
-        reason: newBlacklistReason.value.trim() || '手动添加'
-      }
-    })
-
-    if (response.success) {
-      toastStore.success(response.message || `IP ${newBlacklistIp.value} 已添加到黑名单`)
-      newBlacklistIp.value = ''
-      newBlacklistReason.value = ''
-      await fetchBlacklist(1)
-    } else {
-      toastStore.error(response.message || '添加失败')
-    }
-  } finally {
-    addingToBlacklist.value = false
-  }
-}
-
-async function removeFromBlacklist(item) {
-  try {
-    const response = await $fetch(`/api/blacklist/${item._id}`, {
-      method: 'DELETE',
-      headers: authStore.authHeader
-    })
-
-    if (response.success) {
-      toastStore.success(`IP ${item.ip} 已从黑名单中移除`)
-      await fetchBlacklist(blacklistPagination.value.page)
-    } else {
-      toastStore.error(response.message || '移除失败')
-    }
-  } catch (error) {
-    toastStore.error('移除失败')
-  }
-}
-
 async function loadUsers() {
   users.value = await settingsStore.fetchUsers()
   if (!newKeyOwnerUserId.value) {
@@ -990,13 +889,8 @@ onMounted(async () => {
     publicConfig.contentSafety = structuredClone(defaultContentSafetyConfig)
   }
 
-  publicConfig.allowedFormats = Array.isArray(publicConfig.allowedFormats) && publicConfig.allowedFormats.length > 0
-    ? publicConfig.allowedFormats
-    : [...availableFormats]
   mediaConfig.allowedExtensions = Array.isArray(mediaConfig.allowedExtensions) && mediaConfig.allowedExtensions.length > 0
     ? mediaConfig.allowedExtensions
     : [...availableFormats]
-
-  await fetchBlacklist()
 })
 </script>

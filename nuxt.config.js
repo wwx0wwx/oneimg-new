@@ -53,6 +53,14 @@ export default defineNuxtConfig({
           'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key'
         }
+      },
+      // 全站增量式 CSP：object-src/base-uri/form-action/frame-ancestors 提供
+      // 实际防护；script-src 暂需 'unsafe-inline'（Nuxt SPA 内联引导脚本），
+      // 完整 nonce 方案待后续版本。SVG 直链由 /i/ 处理器下发更严格的专属 CSP。
+      '/**': {
+        headers: {
+          'Content-Security-Policy': "default-src 'self'; img-src 'self' data: blob: https: http:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+        }
       }
     },
     // 预渲染完成后强制退出进程

@@ -1,5 +1,6 @@
 import { requireAdmin } from '../../utils/auth.js'
-import { saveNotificationConfig, NOTIFICATION_TYPES, NOTIFICATION_METHODS } from '../../utils/notification.js'
+import { saveNotificationConfig, getNotificationConfig, NOTIFICATION_TYPES, NOTIFICATION_METHODS } from '../../utils/notification.js'
+import { isMaskedSecret } from '../../utils/secretBox.js'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -15,6 +16,10 @@ export default defineEventHandler(async (event) => {
         message: `不支持的通知方式: ${method}`
       })
     }
+
+    // 客户端提交的可能是脱敏占位（****）或留空：这些情况保留库中已有密钥，避免掩码覆盖真实值
+    const current = await getNotificationConfig()
+    const keepOr = (incoming, existing) => (isMaskedSecret(incoming) ? existing : incoming)
 
     const config = {
       enabled: !!enabled,
@@ -38,17 +43,17 @@ export default defineEventHandler(async (event) => {
         }, null, 2)
       },
       telegram: {
-        token: telegram?.token || '',
-        chatId: telegram?.chatId || ''
+        token: keepOr(telegram?.token, current.telegram.token),
+        chatId: telegram?.chatId || current.telegram.chatId || ''
       },
       email: {
-        service: email?.service || '',
-        user: email?.user || '',
-        pass: email?.pass || '',
-        to: email?.to || ''
+        service: email?.service || current.email.service || '',
+        user: email?.user || current.email.user || '',
+        pass: keepOr(email?.pass, current.email.pass),
+        to: email?.to || current.email.to || ''
       },
       serverchan: {
-        sendKey: serverchan?.sendKey || ''
+        sendKey: keepOr(serverchan?.sendKey, current.serverchan.sendKey)
       }
     }
 

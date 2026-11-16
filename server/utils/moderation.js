@@ -1,6 +1,7 @@
 import { readFile } from 'fs/promises'
 import { existsSync } from 'fs'
 import { getMediaPath } from './media.js'
+import { assertSafeOutboundUrl } from './netGuard.js'
 
 /**
  * 内容审核服务 - 支持多厂商API适配
@@ -95,7 +96,8 @@ const providerAdapters = {
         const response = await fetch(apiUrl, {
           method: 'POST',
           body: formBuffer,
-          headers: headers
+          headers: headers,
+          signal: AbortSignal.timeout(30000)
         })
 
         if (!response.ok) {
@@ -174,7 +176,8 @@ const providerAdapters = {
         const uploadResponse = await fetch(uploadUrl, {
           method: 'POST',
           body: uploadBuffer,
-          headers: uploadHeaders
+          headers: uploadHeaders,
+          signal: AbortSignal.timeout(30000)
         })
 
         if (!uploadResponse.ok) {
@@ -199,6 +202,7 @@ const providerAdapters = {
           headers: {
             'Content-Type': 'application/json'
           },
+          signal: AbortSignal.timeout(30000),
           body: JSON.stringify({
             imageFile: uploadResult.filePath,
             sensitivity: 0.5,
@@ -244,7 +248,11 @@ const providerAdapters = {
    * nsfw_detector 适配器（自建服务）
    * API: 需在设置中自行配置
    * Request: multipart/form-data, file 字段
-   * Response: { code: 200, msg: "success", data: { sfw: 0.0014, nsfw: 0.9986, is_nsfw: true } }
+   * Response（按本适配器的实际解析实现，自建服务需返回该结构）:
+   *   { status: "success", result: { sfw: 0.0014, nsfw: 0.9986 } }
+   * 判定：result.nsfw >= threshold（默认 0.8）为违规。
+   * 注意：与旧注释中的 { code, msg, data:{nsfw} } 结构不同——如你的自建
+   * 服务返回的是旧结构，请调整服务端返回或修改下方解析代码。
    */
   'nsfw_detector': {
     name: MODERATION_PROVIDERS['nsfw_detector'].name,
@@ -295,7 +303,8 @@ const providerAdapters = {
         const response = await fetch(apiUrl, {
           method: 'POST',
           body: formBuffer,
-          headers: headers
+          headers: headers,
+          signal: AbortSignal.timeout(30000)
         })
 
         if (!response.ok) {
@@ -409,6 +418,12 @@ export async function moderateImage(imageId, filename, contentSafetyConfig) {
   }
 
   try {
+    // 出站安全校验：管理员可配的检测服务地址同样不允许指向内网/回环
+    const outboundUrls = [providerConfig.uploadUrl, providerConfig.apiUrl].filter(Boolean)
+    for (const u of outboundUrls) {
+      await assertSafeOutboundUrl(u)
+    }
+
     const imageBuffer = await readFile(filePath)
     const result = await adapter.detect(imageBuffer, filename, providerConfig)
 

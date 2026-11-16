@@ -220,6 +220,25 @@ uploads/
 - 当前版本重点是稳定性、权限正确性和一致性
 - 数据文件名仍沿用 `images.db`，但业务模型统一为 `media`
 
+## 隐私与出站行为（务必阅读）
+
+- **内容安全检测会把图片发送到第三方服务**（nsfwdet.com / elysiatools.com，或你自建的 nsfw_detector）。涉及隐私的图片请勿开启，或自建检测服务。
+- **URL 导入**会由服务端向目标地址发起下载请求（出站）；内网/回环/云元数据地址已被强制拒绝。
+- **通知渠道**（Webhook/Telegram/邮件/Server酱）由管理员配置，同样禁止指向内网地址；通知密钥在数据库中加密存储。
+- URL 导入默认**不再伪造 Referer/Origin** 绕过防盗链；如确需开启，设置环境变量 `ONEIMG_SPOOF_REFERER=1` 并自担合规责任。
+- **生产部署请务必在后台配置固定的站点 URL（siteUrl）**，否则外链将依据请求 Host 头推断，存在被污染的风险。
+
+## 环境变量参考
+
+| 变量 | 说明 |
+|---|---|
+| `JWT_SECRET` | JWT 签名密钥（不设则自动生成并持久化到数据库） |
+| `ONEIMG_SECRET_KEY` | 通知密钥等敏感配置的加密主密钥（不设则从 jwtSecret 派生） |
+| `ONEIMG_DATA_DIR` | 覆盖数据/上传目录（默认 `/app/db`、`/app/uploads`） |
+| `ONEIMG_SPOOF_REFERER` | `1` 时 URL 导入伪造目标站 Referer（默认关闭） |
+| `NSFWDET_API_KEY` | nsfwdet 检测服务密钥（仅服务端） |
+| `TELEGRAM_API_URL` | Telegram Bot API 反代地址 |
+
 ## 常见问题
 
 ### 如何重置管理员？

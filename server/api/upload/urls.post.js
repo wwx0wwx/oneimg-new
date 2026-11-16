@@ -1,6 +1,6 @@
 import db from '../../utils/db.js'
 import { requireAuthUser, getMediaOwnerFromUser, resolveUploadRole } from '../../utils/auth.js'
-import { importMediaFromUrl } from '../../utils/urlImport.js'
+import { importMediaFromUrl, MAX_URL_IMPORT_BATCH } from '../../utils/urlImport.js'
 import { getMediaConfig } from '../../utils/mediaConfig.js'
 
 async function downloadAndSaveMedia({ event, url, uploadConfig, owner, ownerRole, mediaConfig }) {
@@ -31,6 +31,10 @@ export default defineEventHandler(async (event) => {
     const validUrls = [...new Set(urls.map(u => u.trim()).filter(u => u.length > 0))]
     if (validUrls.length === 0) {
       throw createError({ statusCode: 400, message: '请提供有效的媒体 URL' })
+    }
+    // 服务端强制批量上限，前端限制可被绕过
+    if (validUrls.length > MAX_URL_IMPORT_BATCH) {
+      throw createError({ statusCode: 400, message: `单次最多导入 ${MAX_URL_IMPORT_BATCH} 个 URL` })
     }
 
     const configDoc = await db.settings.findOne({ key: 'privateApiConfig' })

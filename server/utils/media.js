@@ -2,7 +2,6 @@ import sharp from 'sharp'
 import { join, extname } from 'path'
 import { existsSync, mkdirSync, unlinkSync } from 'fs'
 import { writeFile } from 'fs/promises'
-import { v4 as uuidv4 } from 'uuid'
 
 // 上传目录优先级与 db.js 的数据目录保持一致：
 // ONEIMG_DATA_DIR/uploads > 生产默认 /app/uploads > 开发默认 <cwd>/uploads
@@ -80,10 +79,6 @@ export function sanitizeOriginalName(filename = '', fallbackExt = '') {
     return safeBase
   }
   return `${safeBase}.${ext}`
-}
-
-export function generateStoredFilename(extension) {
-  return `${uuidv4()}.${normalizeExtension(extension)}`
 }
 
 export async function saveUploadedFile(buffer, filename) {
@@ -170,18 +165,6 @@ export function getMediaPath(filename) {
 
 
 
-export function getImageFilePath(filename) {
-  return getMediaPath(filename)
-}
-
-
-export function getUploadsDir() {
-  return uploadsDir
-}
-
-export function getUploadsDirPath() {
-  return uploadsDir
-}
 
 export function deleteMediaFile(filename) {
   const filepath = join(uploadsDir, filename)
@@ -193,10 +176,6 @@ export function deleteMediaFile(filename) {
 }
 
 
-
-export function isValidFormat(format, allowedFormats = []) {
-  return allowedFormats.map(item => normalizeExtension(item)).includes(normalizeExtension(format))
-}
 
 export function inferMediaType(record = {}) {
   if (record.mediaType) return record.mediaType

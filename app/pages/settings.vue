@@ -3,8 +3,8 @@
     <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-8">系统设置</h1>
 
     <div class="space-y-6">
-      <!-- 应用设置 -->
-      <div class="card p-6">
+      <!-- 应用设置（仅管理员） -->
+      <div v-if="authStore.isAdmin" class="card p-6">
         <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">应用设置</h2>
 
         <form @submit.prevent="saveAppSettings" class="space-y-4">
@@ -127,8 +127,8 @@
         </form>
       </div>
 
-      <!-- 公告设置 -->
-      <div class="card p-6">
+      <!-- 公告设置（仅管理员） -->
+      <div v-if="authStore.isAdmin" class="card p-6">
         <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
           <Icon name="heroicons:megaphone" class="w-5 h-5 text-primary-500" />
           公告设置
@@ -458,8 +458,10 @@ async function updatePassword() {
 
 // 初始化
 onMounted(async () => {
-  // 获取应用设置（authStore.init() 已在插件中调用）
-  await settingsStore.fetchAppSettings()
+  // 获取应用设置（authStore.init() 已在插件中调用）；仅管理员拉取，普通用户只用到账户设置
+  if (authStore.isAdmin) {
+    await settingsStore.fetchAppSettings()
+  }
 
   // 同步到本地状态
   appSettings.appName = settingsStore.appSettings.appName || 'OneImg'

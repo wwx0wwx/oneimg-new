@@ -1,6 +1,6 @@
 import db from '../../utils/db.js'
 import { requireAuthUser, getMediaOwnerFromUser, isAdminUser, USER_ROLES } from '../../utils/auth.js'
-import { importMediaFromUrl } from '../../utils/urlImport.js'
+import { importMediaFromUrl, MAX_URL_IMPORT_BATCH } from '../../utils/urlImport.js'
 import { getMediaConfig } from '../../utils/mediaConfig.js'
 
 export default defineEventHandler(async (event) => {
@@ -44,6 +44,10 @@ export default defineEventHandler(async (event) => {
     const urls = isArrayUrl ? url : [url]
     if (urls.length === 0) {
       throw createError({ statusCode: 400, message: '请提供至少一个媒体 URL' })
+    }
+    // 服务端强制批量上限，前端限制可被绕过
+    if (urls.length > MAX_URL_IMPORT_BATCH) {
+      throw createError({ statusCode: 400, message: `单次最多导入 ${MAX_URL_IMPORT_BATCH} 个 URL` })
     }
 
     const configDoc = await db.settings.findOne({ key: 'privateApiConfig' })

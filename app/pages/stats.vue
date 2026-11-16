@@ -328,7 +328,8 @@ import { useSettingsStore } from '~/stores/settings'
 import { useToastStore } from '~/stores/toast'
 
 definePageMeta({
-  middleware: 'auth'
+  middleware: 'auth',
+  adminOnly: true
 })
 
 const authStore = useAuthStore()

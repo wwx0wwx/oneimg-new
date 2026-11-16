@@ -27,6 +27,14 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    // 类型必须为字符串：防止 NeDB 查询操作符注入（如 {"$regex":...}）打进查询层
+    if (typeof username !== 'string' || typeof password !== 'string') {
+      throw createError({
+        statusCode: 400,
+        message: '用户名或密码格式错误'
+      })
+    }
+
     // 查找用户
     const user = await db.users.findOne({ username })
     if (!user) {
@@ -83,7 +91,8 @@ export default defineEventHandler(async (event) => {
           id: user._id,
           username: user.username,
           role: user.role || 'user',
-          status: user.status || 'active'
+          status: user.status || 'active',
+          requirePasswordChange: !!user.requirePasswordChange
         }
       }
     }
@@ -91,9 +100,11 @@ export default defineEventHandler(async (event) => {
     if (error.statusCode) {
       throw error
     }
+    // 500 不回显内部错误细节，避免向外部探测者泄露实现信息
+    console.error('[Login] 登录处理异常:', error)
     throw createError({
       statusCode: 500,
-      message: '登录失败: ' + error.message
+      message: '登录失败，请稍后重试'
     })
   }
 })

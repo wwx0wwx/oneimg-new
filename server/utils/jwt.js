@@ -71,10 +71,17 @@ export async function verifyToken(token) {
     if ((decoded.tv || 1) !== (user.tokenVersion || 1)) {
       return null
     }
+    // 附带调用方常用的用户字段，使 getAuthUser 无需二次查库
     return {
       ...decoded,
       role: normalizeUserRole(user.role || decoded.role || USER_ROLES.USER),
-      username: user.username
+      username: user.username,
+      _id: user._id,
+      status: user.status,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      lastLoginAt: user.lastLoginAt || null,
+      requirePasswordChange: !!user.requirePasswordChange
     }
   } catch (error) {
     return null

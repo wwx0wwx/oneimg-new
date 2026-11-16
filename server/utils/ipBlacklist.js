@@ -99,13 +99,8 @@ export async function getBlacklist(options = {}) {
   const skip = (page - 1) * limit
 
   const total = await db.ipBlacklist.count({})
-  let records = await db.ipBlacklist.find({})
-
-  // 按创建时间倒序排序
-  records.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-
-  // 分页
-  records = records.slice(skip, skip + limit)
+  // 排序/分页下推存储层
+  const records = await db.ipBlacklist.findPage({}, { sort: { createdAt: -1 }, skip, limit })
 
   return {
     records,

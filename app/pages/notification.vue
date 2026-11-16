@@ -436,7 +436,8 @@ import { useToastStore } from '~/stores/toast'
 
 // 使用认证中间件
 definePageMeta({
-  middleware: 'auth'
+  middleware: 'auth',
+  adminOnly: true
 })
 
 const authStore = useAuthStore()

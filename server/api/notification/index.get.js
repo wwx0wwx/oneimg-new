@@ -1,10 +1,10 @@
 import { requireAdmin } from '../../utils/auth.js'
-import { getNotificationConfig } from '../../utils/notification.js'
+import { getNotificationConfigMasked } from '../../utils/notification.js'
 
 export default defineEventHandler(async (event) => {
   try {
     await requireAdmin(event)
-    const config = await getNotificationConfig()
+    const config = await getNotificationConfigMasked()
 
     return {
       success: true,

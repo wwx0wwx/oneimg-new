@@ -53,9 +53,9 @@
               <span class="hidden sm:inline">首页</span>
             </NuxtLink>
 
-            <!-- API -->
+            <!-- API（仅管理员） -->
             <NuxtLink
-              v-if="authStore.isAuthenticated"
+              v-if="authStore.isAdmin"
               to="/api"
               class="nav-link nav-link-icon sm:nav-link-text"
               :class="{ 'nav-link-active': route.path === '/api' }"
@@ -77,9 +77,9 @@
               <span class="hidden sm:inline">设置</span>
             </NuxtLink>
 
-            <!-- 统计 -->
+            <!-- 统计（仅管理员） -->
             <NuxtLink
-              v-if="authStore.isAuthenticated"
+              v-if="authStore.isAdmin"
               to="/stats"
               class="nav-link nav-link-icon sm:nav-link-text"
               :class="{ 'nav-link-active': route.path === '/stats' }"
@@ -89,9 +89,9 @@
               <span class="hidden sm:inline">统计</span>
             </NuxtLink>
 
-            <!-- 通知 -->
+            <!-- 通知（仅管理员） -->
             <NuxtLink
-              v-if="authStore.isAuthenticated"
+              v-if="authStore.isAdmin"
               to="/notification"
               class="nav-link nav-link-icon sm:nav-link-text"
               :class="{ 'nav-link-active': route.path === '/notification' }"
@@ -222,6 +222,12 @@ onMounted(async () => {
   // 获取完整应用设置（如果已登录）
   if (authStore.isAuthenticated) {
     await settingsStore.fetchAppSettings()
+  }
+
+  // L16：初始密码未修改的管理/用户账户，强制引导到设置页改密
+  if (authStore.user?.requirePasswordChange && route.path !== '/settings') {
+    toastStore.error('当前使用初始密码，请立即修改')
+    router.push('/settings')
   }
 })
 

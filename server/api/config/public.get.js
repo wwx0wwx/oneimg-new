@@ -8,10 +8,11 @@ export default defineEventHandler(async (event) => {
     const isAdmin = !!(user && isAdminUser(user))
 
     const config = await db.settings.findOne({ key: 'publicApiConfig' })
+    // 注意：历史上此配置含 enabled/allowedFormats/maxFileSize 三个"死字段"——
+    // 服务端校验从未使用它们（真实的匿名开关/格式/大小来自 mediaConfig）。
+    // v1.3.1 起彻底移除，避免"总开关关闭但实际不生效"的误导。匿名上传策略
+    // 统一在媒体策略（mediaConfig）中配置。
     const defaultConfig = {
-      enabled: false,
-      allowedFormats: ['jpeg', 'jpg', 'png', 'gif', 'webp', 'avif', 'svg', 'bmp', 'ico', 'apng', 'tiff', 'tif', 'mp4', 'webm', 'mov'],
-      maxFileSize: 10 * 1024 * 1024,
       enableCompression: false,
       compressionQuality: 80,
       convertToWebp: false,
@@ -29,14 +30,14 @@ export default defineEventHandler(async (event) => {
         ...(config?.value?.contentSafety || {})
       }
     }
+    delete configData.enabled
+    delete configData.allowedFormats
+    delete configData.maxFileSize
 
     if (!isAdmin) {
       return {
         success: true,
         data: {
-          enabled: configData.enabled,
-          allowedFormats: configData.allowedFormats,
-          maxFileSize: configData.maxFileSize,
           allowConcurrent: configData.allowConcurrent
         }
       }
