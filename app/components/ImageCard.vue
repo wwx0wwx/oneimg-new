@@ -52,8 +52,8 @@
       @click="handleImageClick"
     >
       <video
-        v-if="isVideo"
-        :src="image.url"
+        v-if="isVideo && mediaSrc.src.value"
+        :src="mediaSrc.src.value"
         :poster="image.poster || image.coverUrl || ''"
         class="absolute inset-0 w-full h-full object-cover transition-all duration-500 ease-out group-hover:scale-105"
         :class="imageLoaded ? 'opacity-100' : 'opacity-0'"
@@ -65,8 +65,8 @@
       ></video>
       <!-- 图片元素 - 使用 CSS 过渡实现淡入 -->
       <img
-        v-else
-        :src="image.url"
+        v-else-if="mediaSrc.src.value"
+        :src="mediaSrc.src.value"
         :alt="image.filename"
         class="absolute inset-0 w-full h-full object-cover transition-all duration-500 ease-out group-hover:scale-105"
         :class="imageLoaded ? 'opacity-100' : 'opacity-0'"
@@ -173,6 +173,9 @@ const mediaStore = useMediaStore()
 
 const isVideo = computed(() => props.image.mediaType === 'video')
 
+// 私有媒体直链需要 Bearer 头，<img> 标签带不了：改用带凭证的 fetch + Blob URL
+const mediaSrc = useMediaSrc(() => props.image)
+
 // 媒体加载状态
 const imageLoaded = ref(false)
 const imageError = ref(false)
@@ -199,6 +202,9 @@ function formatFileSize(bytes) {
 
 function onImageLoad() {
   imageLoaded.value = true
+  // 私有媒体经凭证解析后 src 从空变为 blob：中途可能触发过一次 error，
+  // 最终加载成功时必须清掉错误标记，否则"加载失败"遮罩永久残留
+  imageError.value = false
 }
 
 function onImageError() {

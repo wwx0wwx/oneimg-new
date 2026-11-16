@@ -34,24 +34,52 @@ function getExtensionFromContentType(contentType = '') {
   return mimeToExt[String(contentType).split(';')[0].toLowerCase()] || ''
 }
 
+// 归一化 IP 字符串用于私网判断：
+// - WHATWG URL 的 hostname 对 IPv6 字面量带方括号（如 "[::1]"），需先剥离
+// - IPv4-mapped IPv6（::ffff:127.0.0.1）还原为 IPv4 再判断，否则会绕过私网检查
+function normalizeIpForCheck(ip = '') {
+  return String(ip || '').trim().replace(/^\[|\]$/g, '')
+}
+
 function isPrivateIp(ip = '') {
-  if (!ip) return true
-  if (net.isIPv4(ip)) {
-    return ip.startsWith('10.')
-      || ip.startsWith('127.')
-      || ip.startsWith('192.168.')
-      || ip.startsWith('169.254.')
-      || /^172\.(1[6-9]|2\d|3[0-1])\./.test(ip)
+  const normalized = normalizeIpForCheck(ip).toLowerCase()
+  if (!normalized) return true
+
+  // IPv4-mapped IPv6 → 按 IPv4 判断。有两种写法都要覆盖：
+  // - 点分形式：::ffff:127.0.0.1
+  // - 十六进制形式：::ffff:7f00:1（Node 的 WHATWG URL 会把点分形式规范化成这种）
+  const mappedDotted = normalized.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/)
+  if (mappedDotted) return isPrivateIp(mappedDotted[1])
+  const mappedHex = normalized.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/)
+  if (mappedHex) {
+    const hi = parseInt(mappedHex[1], 16)
+    const lo = parseInt(mappedHex[2], 16)
+    const v4 = [(hi >> 8) & 255, hi & 255, (lo >> 8) & 255, lo & 255].join('.')
+    return isPrivateIp(v4)
   }
-  const normalized = ip.toLowerCase()
-  return normalized === '::1'
-    || normalized.startsWith('fc')
-    || normalized.startsWith('fd')
-    || normalized.startsWith('fe80:')
+
+  if (net.isIPv4(normalized)) {
+    const octets = normalized.split('.').map(Number)
+    const [a, b] = octets
+    return a === 0                                   // 0.0.0.0/8 "this network"
+      || a === 10                                    // 10.0.0.0/8
+      || a === 127                                   // 127.0.0.0/8 loopback
+      || (a === 100 && b >= 64 && b <= 127)          // 100.64.0.0/10 CGNAT
+      || (a === 169 && b === 254)                    // 169.254.0.0/16 link-local（含云元数据）
+      || (a === 172 && b >= 16 && b <= 31)           // 172.16.0.0/12
+      || (a === 192 && b === 168)                    // 192.168.0.0/16
+  }
+
+  // IPv6
+  return normalized === '::' || normalized === '::1'          // 未指定/回环
+    || normalized.startsWith('::ffff:0:')                      // NAT64 ::ffff:0:0/96 映射段
+    || normalized.startsWith('fc') || normalized.startsWith('fd')  // ULA fc00::/7
+    || normalized.startsWith('fe80:')                          // link-local
+    || normalized.startsWith('fec0:')                          // site-local（已废弃但仍应拒绝）
 }
 
 async function assertSafeRemoteUrl(mediaUrl) {
-  const hostname = mediaUrl.hostname.toLowerCase()
+  const hostname = normalizeIpForCheck(mediaUrl.hostname).toLowerCase()
   if (PRIVATE_HOSTNAMES.has(hostname)) {
     throw createError({ statusCode: 400, message: '不允许导入本地或内网地址' })
   }
@@ -63,7 +91,12 @@ async function assertSafeRemoteUrl(mediaUrl) {
     return
   }
 
-  const records = await dns.lookup(hostname, { all: true })
+  let records
+  try {
+    records = await dns.lookup(hostname, { all: true })
+  } catch {
+    throw createError({ statusCode: 400, message: '无法解析的主机名' })
+  }
   if (!records.length || records.some(record => isPrivateIp(record.address))) {
     throw createError({ statusCode: 400, message: '不允许导入本地或内网地址' })
   }

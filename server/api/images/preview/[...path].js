@@ -42,6 +42,12 @@ export default defineEventHandler(async (event) => {
     setHeader(event, 'X-Content-Type-Options', 'nosniff')
     setHeader(event, 'Accept-Ranges', 'bytes')
 
+    // 与 /i/ 直链一致：SVG 强制下载 + 限制性 CSP，防止同源脚本执行
+    if (normalizeExtension(ext) === 'svg') {
+      setHeader(event, 'Content-Disposition', `attachment; filename="${media.uuid}.svg"`)
+      setHeader(event, 'Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+    }
+
     return sendStream(event, createReadStream(filePath))
   } catch (error) {
     if (error.statusCode) {

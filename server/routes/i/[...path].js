@@ -56,6 +56,14 @@ export default defineEventHandler(async (event) => {
     setHeader(event, 'Accept-Ranges', 'bytes')
     setHeader(event, 'Cache-Control', cacheable ? `public, max-age=${maxAge}, immutable` : 'private, no-store, no-cache, must-revalidate')
 
+    // SVG 可内嵌脚本且与站点同源，直接在浏览器顶层打开会执行任意 JS
+    //（可窃取 localStorage 中的 JWT）。强制下载（<img>/<video> 嵌入不受
+    // Content-Disposition 影响，画廊缩略图仍正常），并叠加限制性 CSP 作为纵深防御。
+    if (actualExt === 'svg') {
+      setHeader(event, 'Content-Disposition', `attachment; filename="${media.uuid}.svg"`)
+      setHeader(event, 'Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+    }
+
     if (cacheable) {
       setHeader(event, 'Expires', new Date(Date.now() + maxAge * 1000).toUTCString())
     }

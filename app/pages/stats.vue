@@ -248,13 +248,13 @@
         <div class="relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden p-4">
           <video
             v-if="previewingMedia?.mediaType === 'video'"
-            :src="previewingMedia.previewUrl || previewingMedia.url"
+            :src="resolvedPreviewSrc"
             class="max-w-full max-h-96 mx-auto object-contain"
             controls
           ></video>
           <img
             v-else-if="previewingMedia"
-            :src="previewingMedia.previewUrl || previewingMedia.url"
+            :src="resolvedPreviewSrc"
             :alt="previewingMedia.originalName"
             class="max-w-full max-h-96 mx-auto object-contain"
             @error="handlePreviewError"
@@ -322,7 +322,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import { useSettingsStore } from '~/stores/settings'
 import { useToastStore } from '~/stores/toast'
@@ -347,6 +347,10 @@ const nsfwPagination = reactive({
 })
 const showNsfwPreviewModal = ref(false)
 const previewingMedia = ref(null)
+// 违规媒体预览走 /api/images/preview（需要管理员凭证），<img> 带不了头：
+// 统一经 useMediaSrc 用带凭证的 fetch 解析出可用的 Blob URL
+const previewSrc = useMediaSrc(() => previewingMedia.value)
+const resolvedPreviewSrc = computed(() => previewSrc.src.value || '')
 const unmarkingNsfw = ref(false)
 const showClearNsfwModal = ref(false)
 

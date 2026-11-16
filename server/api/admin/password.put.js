@@ -1,6 +1,7 @@
 import db from '../../utils/db.js'
 import bcrypt from 'bcryptjs'
 import { requireAuthUser } from '../../utils/auth.js'
+import { generateToken } from '../../utils/jwt.js'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -33,20 +34,31 @@ export default defineEventHandler(async (event) => {
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10)
+    // 显式递增 tokenVersion：修改密码后所有旧 token 立即失效。
+    // （不用 $inc：存量用户无该字段时 0+1=1 与旧 token 的默认 tv=1 相等，撤销不生效）
     await db.users.update(
       { _id: user._id },
       {
         $set: {
           password: hashedPassword,
           updatedAt: new Date().toISOString(),
-          requirePasswordChange: false
+          requirePasswordChange: false,
+          tokenVersion: (user.tokenVersion || 1) + 1
         }
       }
     )
 
+    // 当前会话换发新 token，避免改密后自己被登出
+    const newToken = await generateToken({
+      userId: user._id,
+      username: user.username,
+      role: user.role || 'user'
+    })
+
     return {
       success: true,
-      message: '密码修改成功'
+      message: '密码修改成功',
+      data: { token: newToken }
     }
   } catch (error) {
     if (error.statusCode) {

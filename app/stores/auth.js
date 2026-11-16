@@ -103,6 +103,15 @@ export const useAuthStore = defineStore('auth', {
         localStorage.setItem('token', this.token)
         localStorage.setItem('user', JSON.stringify(this.user))
       }
+    },
+
+    // 服务端换发新 token 时续期当前会话（例如修改密码后旧 token 已被撤销）
+    setToken(token) {
+      if (!token) return
+      this.token = token
+      if (import.meta.client) {
+        localStorage.setItem('token', this.token)
+      }
     }
   },
 

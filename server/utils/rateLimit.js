@@ -12,15 +12,19 @@ setInterval(() => {
   }
 }, 60000)
 
-export async function checkRateLimit(type, identifier) {
-  const configKey = type === 'public' ? 'publicApiConfig' : 'privateApiConfig'
-  const config = await db.settings.findOne({ key: configKey })
+export async function checkRateLimit(type, identifier, opts = {}) {
+  let rateLimit = opts.limit
 
-  if (!config?.value?.rateLimit) {
+  if (!Number.isFinite(rateLimit) || rateLimit <= 0) {
+    const configKey = type === 'public' ? 'publicApiConfig' : 'privateApiConfig'
+    const config = await db.settings.findOne({ key: configKey })
+    rateLimit = config?.value?.rateLimit
+  }
+
+  if (!rateLimit || rateLimit <= 0) {
     return { allowed: true }
   }
 
-  const rateLimit = config.value.rateLimit
   const key = `${type}:${identifier}`
   const now = Date.now()
   let record = requestCounts.get(key)
@@ -35,7 +39,7 @@ export async function checkRateLimit(type, identifier) {
     return {
       allowed: false,
       remaining: 0,
-      retryAfter: Math.ceil((record.startTime + 60000 - now) / 1000)
+      retryAfter: Math.max(1, Math.ceil((record.startTime + 60000 - now) / 1000))
     }
   }
 
@@ -44,11 +48,11 @@ export async function checkRateLimit(type, identifier) {
 }
 
 export function checkPublicRateLimit(identifier, rateLimit) {
-  return checkRateLimit('public', identifier)
+  return checkRateLimit('public', identifier, { limit: rateLimit })
 }
 
 export function checkPrivateRateLimit(identifier, rateLimit) {
-  return checkRateLimit('private', identifier)
+  return checkRateLimit('private', identifier, { limit: rateLimit })
 }
 
 export async function checkConcurrency(type, identifier) {

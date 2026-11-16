@@ -103,7 +103,7 @@ node .output/server/index.mjs
 ```bash
 NODE_ENV=production
 JWT_SECRET=请替换为强随机长字符串
-PORT=3000
+PORT=8888
 ```
 
 推荐的单机运行策略：

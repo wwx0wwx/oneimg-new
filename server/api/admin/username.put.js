@@ -34,7 +34,9 @@ export default defineEventHandler(async (event) => {
       {
         $set: {
           username,
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
+          // 改名同时撤销旧 token（显式 +1，兼容无该字段的存量用户）
+          tokenVersion: (user.tokenVersion || 1) + 1
         }
       }
     )

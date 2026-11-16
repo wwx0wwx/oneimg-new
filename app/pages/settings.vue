@@ -200,14 +200,15 @@
             </p>
           </div>
 
-          <!-- 预览 -->
-          <div v-if="announcementSettings.enabled && announcementSettings.content" class="space-y-2">
+          <!-- 预览：仅展示服务端净化后保存的内容，避免渲染未经净化的原始输入 -->
+          <div v-if="announcementSettings.enabled && savedAnnouncementContent" class="space-y-2">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              预览效果
+              预览效果（保存后实际生效的净化内容）
             </label>
             <div class="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
-              <div v-html="announcementSettings.content" class="prose prose-sm dark:prose-invert max-w-none"></div>
+              <div v-html="savedAnnouncementContent" class="prose prose-sm dark:prose-invert max-w-none"></div>
             </div>
+            <p class="text-xs text-gray-400 dark:text-gray-500">点击"保存公告设置"后刷新预览；不支持的标签/属性会被自动移除</p>
           </div>
 
           <div class="pt-4">
@@ -306,6 +307,8 @@ const announcementSettings = reactive({
   displayType: 'modal'  // 'modal' | 'banner'
 })
 const savingAnnouncement = ref(false)
+// 服务端净化后保存的公告内容，用于安全预览
+const savedAnnouncementContent = ref('')
 
 // 账户设置
 const newUsername = ref('')
@@ -361,6 +364,9 @@ async function saveAnnouncementSettings() {
 
     if (result.success) {
       toastStore.success('公告设置已保存')
+      // 用服务端返回的净化内容刷新预览
+      const saved = settingsStore.appSettings.announcement?.content ?? ''
+      savedAnnouncementContent.value = saved
     } else {
       toastStore.error(result.message || '保存失败')
     }
@@ -433,7 +439,10 @@ async function updatePassword() {
     })
 
     if (response.success) {
-      toastStore.success('密码已更新')
+      toastStore.success('密码已更新（其他设备的登录已全部失效）')
+      if (response.data?.token) {
+        authStore.setToken(response.data.token)
+      }
       passwordForm.oldPassword = ''
       passwordForm.newPassword = ''
       passwordForm.confirmPassword = ''
@@ -464,6 +473,7 @@ onMounted(async () => {
   announcementSettings.enabled = announcement.enabled || false
   announcementSettings.content = announcement.content || ''
   announcementSettings.displayType = announcement.displayType || 'modal'
+  savedAnnouncementContent.value = announcement.content || ''
 
   // 设置当前用户名
   newUsername.value = ''

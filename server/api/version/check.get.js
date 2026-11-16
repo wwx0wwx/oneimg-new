@@ -1,7 +1,8 @@
 import { requireAuthUser } from '../../utils/auth.js'
 
-const PROXY_URL = 'https://git.221022.xyz/https://raw.githubusercontent.com/oneimg/oneimg/main/package.json'
-const DIRECT_URL = 'https://raw.githubusercontent.com/oneimg/oneimg/main/package.json'
+// 指向本项目真实仓库（旧地址 oneimg/oneimg 不存在，且包含第三方代理）
+const PROXY_URL = ''
+const DIRECT_URL = 'https://raw.githubusercontent.com/wwx0wwx/oneimg-new/main/package.json'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -14,9 +15,9 @@ export default defineEventHandler(async (event) => {
     let hasUpdate = false
     let error = null
 
-    let remotePackage = await fetchPackageJson(PROXY_URL)
-    if (!remotePackage) {
-      remotePackage = await fetchPackageJson(DIRECT_URL)
+    let remotePackage = await fetchPackageJson(DIRECT_URL)
+    if (!remotePackage && PROXY_URL) {
+      remotePackage = await fetchPackageJson(PROXY_URL)
     }
 
     if (remotePackage && remotePackage.version) {

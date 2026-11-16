@@ -4,9 +4,13 @@ import { existsSync, mkdirSync, unlinkSync } from 'fs'
 import { writeFile } from 'fs/promises'
 import { v4 as uuidv4 } from 'uuid'
 
-const uploadsDir = process.env.NODE_ENV === 'production'
-  ? '/app/uploads'
-  : join(process.cwd(), 'uploads')
+// 上传目录优先级与 db.js 的数据目录保持一致：
+// ONEIMG_DATA_DIR/uploads > 生产默认 /app/uploads > 开发默认 <cwd>/uploads
+const uploadsDir = process.env.ONEIMG_DATA_DIR
+  ? join(process.env.ONEIMG_DATA_DIR, 'uploads')
+  : (process.env.NODE_ENV === 'production'
+    ? '/app/uploads'
+    : join(process.cwd(), 'uploads'))
 
 if (!existsSync(uploadsDir)) {
   mkdirSync(uploadsDir, { recursive: true })

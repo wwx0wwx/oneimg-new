@@ -5,7 +5,8 @@ import { getMediaConfig } from '../../utils/mediaConfig.js'
 
 export default defineEventHandler(async (event) => {
   try {
-    const apiKey = getHeader(event, 'x-api-key') || getQuery(event).apiKey
+    // API Key 仅接受请求头传递（避免 query 进入日志/历史记录）
+    const apiKey = getHeader(event, 'x-api-key')
     let owner = null
     let uploadedByType = 'url'
     let apiKeyId = null

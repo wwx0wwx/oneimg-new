@@ -31,6 +31,8 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, message: '密码至少 8 位' })
     }
     updateData.password = await bcrypt.hash(String(body.password).trim(), 10)
+    // 管理员重置密码 → 撤销该用户全部旧 token（显式 +1，兼容存量无字段用户）
+    updateData.tokenVersion = (user.tokenVersion || 1) + 1
   }
 
   if (body.status !== undefined) {

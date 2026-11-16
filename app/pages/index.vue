@@ -61,6 +61,7 @@
     <ImageViewer
       :visible="viewerVisible"
       :src="viewerMedia?.url || ''"
+      :media="viewerMedia"
       :alt="viewerMedia?.filename || ''"
       :info="viewerMediaInfo"
       :media-type="viewerMedia?.mediaType || 'image'"

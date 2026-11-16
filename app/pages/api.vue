@@ -577,7 +577,9 @@ const defaultContentSafetyConfig = {
     nsfwdet: {
       name: 'NSFW Detector',
       apiUrl: 'https://nsfwdet.com/api/v1/detect-nsfw',
-      apiKey: 'nsfw_2f7ab4f1d743d69ee242eec932b19671',
+      // API Key 一律由服务端 NSFWDET_API_KEY 环境变量提供，
+      // 前端不持有、不提交任何密钥（历史硬编码 key 已删除并应吊销）
+      apiKey: '',
       threshold: 0.5
     },
     elysiatools: {
@@ -619,8 +621,8 @@ const mediaConfig = reactive({
   allowAnonymousUpload: false,
   allowedExtensions: [...availableFormats],
   anonymousMaxFileSize: 10 * 1024 * 1024,
-  userMaxFileSize: 100 * 1024 * 1024,
-  adminMaxFileSize: 300 * 1024 * 1024,
+  userMaxFileSize: 50 * 1024 * 1024,
+  adminMaxFileSize: 100 * 1024 * 1024,
   defaultUserVisibility: 'private'
 })
 

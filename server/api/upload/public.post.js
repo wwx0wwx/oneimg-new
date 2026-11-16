@@ -12,28 +12,30 @@ import { USER_ROLES } from '../../utils/auth.js'
 
 export default defineEventHandler(async (event) => {
   const clientIP = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
+  // 并发计数只有 acquire 过才允许 release，避免计数漂移
+  let concurrencyAcquired = false
 
   try {
     const mediaConfig = await assertAnonymousUploadAllowed(event)
     const publicConfigDoc = await db.settings.findOne({ key: 'publicApiConfig' })
     const uploadConfig = publicConfigDoc?.value || {}
 
-    const rateLimitResult = checkPublicRateLimit(clientIP, uploadConfig.rateLimit || 10)
+    const rateLimitResult = await checkPublicRateLimit(clientIP, uploadConfig.rateLimit || 10)
     if (!rateLimitResult.allowed) {
-      throw createError({ statusCode: 429, message: `请求过于频繁，请 ${rateLimitResult.retryAfter} 秒后重试` })
+      throw createError({ statusCode: 429, message: `请求过于频繁，请 ${rateLimitResult.retryAfter ?? 60} 秒后重试` })
     }
 
     if (!uploadConfig.allowConcurrent) {
-      const concurrencyResult = checkPublicConcurrency(clientIP)
+      const concurrencyResult = await checkPublicConcurrency(clientIP)
       if (!concurrencyResult.allowed) {
         throw createError({ statusCode: 429, message: '请等待上一项媒体上传完成' })
       }
       acquirePublicConcurrency(clientIP)
+      concurrencyAcquired = true
     }
 
     const { file } = await parseFormData(event)
     if (!file) {
-      releasePublicConcurrency(clientIP)
       throw createError({ statusCode: 400, message: '请选择要上传的媒体文件' })
     }
 
@@ -54,7 +56,9 @@ export default defineEventHandler(async (event) => {
       enableModeration: uploadConfig.contentSafety?.enabled === true
     })
 
-    releasePublicConcurrency(clientIP)
+    if (concurrencyAcquired) {
+      releasePublicConcurrency(clientIP)
+    }
 
     sendUploadNotification(
       {
@@ -79,7 +83,9 @@ export default defineEventHandler(async (event) => {
       data: response
     }
   } catch (error) {
-    releasePublicConcurrency(clientIP)
+    if (concurrencyAcquired) {
+      releasePublicConcurrency(clientIP)
+    }
 
     if (error.statusCode) {
       throw error

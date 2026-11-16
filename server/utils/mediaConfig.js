@@ -1,4 +1,3 @@
-import { v4 as uuidv4 } from 'uuid'
 import db from './db.js'
 import { ALL_MEDIA_FORMATS, normalizeExtension } from './media.js'
 import { USER_ROLES } from './auth.js'
@@ -60,12 +59,13 @@ export async function saveMediaConfig(value = {}) {
     ...value
   })
 
+  // 注意：不能在 $set 中携带 _id（NeDB 禁止修改已有文档的 _id，
+  // upsert 插入时也会自动生成），否则每次保存都会抛
+  // "You can't change a document's _id" 并导致 500 / 启动初始化失败。
   await db.settings.update(
     { key: 'mediaConfig' },
     {
       $set: {
-        _id: uuidv4(),
-        key: 'mediaConfig',
         value: merged,
         updatedAt: new Date().toISOString()
       }

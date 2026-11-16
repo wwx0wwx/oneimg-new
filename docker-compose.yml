@@ -4,6 +4,7 @@ services:
     container_name: oneimg
     restart: unless-stopped
     ports:
+      # 容器内监听端口（PORT）与映射保持一致：8888
       - "8888:8888"
     volumes:
       - ./db:/app/db
@@ -11,19 +12,10 @@ services:
     environment:
       - NODE_ENV=production
       - HOST=0.0.0.0
-      - PORT=3000
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
-
-  watchtower:
-    image: containrrr/watchtower:latest
-    container_name: watchtower-oneimg
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - TZ=Asia/Shanghai
-      - WATCHTOWER_CLEANUP=true
-      - WATCHTOWER_POLL_INTERVAL=120
-      - WATCHTOWER_LABEL_ENABLE=true
-    command: --label-enable
+      - PORT=8888
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8888/api/settings/public"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

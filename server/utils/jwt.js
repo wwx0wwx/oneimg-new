@@ -35,13 +35,24 @@ export async function getJwtSecret() {
 }
 
 // 生成 Token
+// - 有效期从 30 天缩短为 7 天
+// - 携带 tokenVersion（tv）：修改密码/用户名、管理员重置密码会递增该版本，
+//   旧 token 立即失效（登出、改密后无法继续使用已泄露的旧 token）
 export async function generateToken(payload) {
   const secret = await getJwtSecret()
+
+  let tokenVersion = 1
+  if (payload.userId) {
+    const user = await db.users.findOne({ _id: payload.userId })
+    tokenVersion = user?.tokenVersion || 1
+  }
+
   const normalizedPayload = {
     ...payload,
-    role: normalizeUserRole(payload.role || USER_ROLES.USER)
+    role: normalizeUserRole(payload.role || USER_ROLES.USER),
+    tv: tokenVersion
   }
-  return jwt.sign(normalizedPayload, secret, { expiresIn: '30d' })
+  return jwt.sign(normalizedPayload, secret, { expiresIn: '7d' })
 }
 
 // 验证 Token
@@ -54,6 +65,10 @@ export async function verifyToken(token) {
     }
     const user = await db.users.findOne({ _id: decoded.userId, status: { $ne: 'disabled' } })
     if (!user) {
+      return null
+    }
+    // tokenVersion 不匹配 = 签发后发生过改密/改名/密码重置，旧 token 撤销
+    if ((decoded.tv || 1) !== (user.tokenVersion || 1)) {
       return null
     }
     return {

@@ -43,11 +43,23 @@ export default defineEventHandler(async (event) => {
         }
       }
 
+      // 厂商密钥只允许来自服务端环境变量：客户端回传的 apiKey 一律剥离，
+      // 防止历史泄露的密钥被前端默认值重新写回配置、以及任意外部密钥被持久化。
+      const stripProviderKeys = (providers = {}) => {
+        const cleaned = {}
+        for (const [key, value] of Object.entries(providers || {})) {
+          if (value && typeof value === 'object') {
+            cleaned[key] = { ...value, apiKey: '' }
+          }
+        }
+        return cleaned
+      }
+
       contentSafetyConfig = {
         ...previousValue.contentSafety,
         ...body.contentSafety,
         autoBlacklistIp: body.contentSafety.autoBlacklistIp === true,
-        providers: body.contentSafety.providers || previousValue.contentSafety.providers
+        providers: stripProviderKeys(body.contentSafety.providers || previousValue.contentSafety.providers)
       }
     }
 

@@ -6,7 +6,9 @@ import { validateMediaByConfig, createMediaRecord } from '../../utils/mediaServi
 import { USER_ROLES, requireAuthUser, resolveUploadRole } from '../../utils/auth.js'
 import { checkPrivateRateLimit } from '../../utils/rateLimit.js'
 
-const MAX_BASE64_SIZE = 10 * 1024 * 1024
+// 与管理员最大上传限制对齐（角色限额由 validateMediaByConfig 统一校验），
+// 此处仅做硬上限兜底，避免 base64 载荷无界膨胀
+const MAX_BASE64_SIZE = 100 * 1024 * 1024
 
 function parseBase64Media(base64String) {
   let base64Data = base64String
@@ -60,9 +62,10 @@ async function resolveUploadOwner(event) {
     }
   }
 
-  const apiKey = getHeader(event, 'x-api-key') || getQuery(event).apiKey
+  // API Key 仅接受请求头传递：query 传参会被反代日志/浏览器历史留存
+  const apiKey = getHeader(event, 'x-api-key')
   if (!apiKey) {
-    throw createError({ statusCode: 401, message: '未登录且缺少 API Key' })
+    throw createError({ statusCode: 401, message: '未登录且缺少 API Key（请通过 X-API-Key 请求头传递）' })
   }
 
   const keyDoc = await db.apikeys.findOne({ key: apiKey, enabled: true })

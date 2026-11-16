@@ -49,8 +49,8 @@ export const useSettingsStore = defineStore('settings', {
       allowAnonymousUpload: false,
       allowedExtensions: DEFAULT_MEDIA_EXTENSIONS,
       anonymousMaxFileSize: 10 * 1024 * 1024,
-      userMaxFileSize: 100 * 1024 * 1024,
-      adminMaxFileSize: 300 * 1024 * 1024,
+      userMaxFileSize: 50 * 1024 * 1024,
+      adminMaxFileSize: 100 * 1024 * 1024,
       defaultUserVisibility: 'private'
     },
     loading: false

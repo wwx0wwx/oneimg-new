@@ -1,8 +1,8 @@
 # 构建阶段
 FROM node:20-alpine AS builder
 
-# 安装 pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# 安装 pnpm（固定版本，保证构建可复现）
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 
 # 设置工作目录
 WORKDIR /app
@@ -35,6 +35,10 @@ EXPOSE 8888
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=8888
+
+# 健康检查（与 docker-compose.yml 的 PORT 保持一致）
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:8888/api/settings/public || exit 1
 
 # 启动应用
 CMD ["node", ".output/server/index.mjs"]

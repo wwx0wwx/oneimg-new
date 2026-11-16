@@ -7,11 +7,13 @@ import { checkRateLimit } from '../../utils/rateLimit.js'
 export default defineEventHandler(async (event) => {
   try {
     const clientIP = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
-    const rateLimitResult = await checkRateLimit('private', `login:${clientIP}`)
+    // 登录使用独立的低限速（每 IP 每分钟 5 次），不与上传限速配置耦合，
+    // 防止管理端把 privateApiConfig.rateLimit 调大后登录接口跟着失去爆破防护
+    const rateLimitResult = await checkRateLimit('login', `login:${clientIP}`, { limit: 5 })
     if (!rateLimitResult.allowed) {
       throw createError({
         statusCode: 429,
-        message: `登录请求过于频繁，请 ${rateLimitResult.retryAfter} 秒后重试`
+        message: `登录尝试过于频繁，请 ${rateLimitResult.retryAfter ?? 60} 秒后重试`
       })
     }
 

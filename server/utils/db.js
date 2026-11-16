@@ -2,10 +2,16 @@ import Datastore from '@seald-io/nedb'
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
 
-// 数据目录：生产环境使用 /app/db，开发环境使用项目根目录下的 db
-const dataDir = process.env.NODE_ENV === 'production'
-  ? '/app/db'
-  : join(process.cwd(), 'db')
+// 数据目录（按优先级）：
+// 1. ONEIMG_DATA_DIR 环境变量（显式覆盖，便于隔离部署/备份/多实例）
+// 2. 生产环境默认 /app/db（Docker 容器约定路径）
+// 3. 开发环境默认项目根目录下 db/
+// 注意：Nitro 构建会将 process.env.NODE_ENV 内联为字面量，
+// 因此生产/开发的切换在构建产物中是固定的，运行时只能靠 ONEIMG_DATA_DIR 覆盖。
+const dataDir = process.env.ONEIMG_DATA_DIR
+  || (process.env.NODE_ENV === 'production'
+    ? '/app/db'
+    : join(process.cwd(), 'db'))
 
 // 确保 db 目录存在
 if (!existsSync(dataDir)) {
