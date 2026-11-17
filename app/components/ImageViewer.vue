@@ -107,12 +107,18 @@ function copyLink() {
   if (!url) return
   const full = typeof window !== 'undefined' ? window.location.origin + url : url
   copyToClipboard(full).then(() => {
-    // 轻量反馈：按钮文字闪换
-    toastCopied.value = true
-    setTimeout(() => { toastCopied.value = false }, 1500)
+    // 轻量反馈：图标闪换为勾
+    const btn = document.querySelector('[title="复制链接"]')
+    if (btn) {
+      const icon = btn.querySelector('.iconify, svg')
+      if (icon) {
+        const orig = icon.className
+        icon.className = orig + ' text-green-400'
+        setTimeout(() => { icon.className = orig }, 1000)
+      }
+    }
   }).catch(() => {})
 }
-const toastCopied = ref(false)
 
 const close = () => {
   emit('close')

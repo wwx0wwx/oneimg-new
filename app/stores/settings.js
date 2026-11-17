@@ -114,26 +114,6 @@ export const useSettingsStore = defineStore('settings', {
       }
     },
 
-    async updateAppSetting(partialSettings) {
-      const authStore = useAuthStore()
-
-      try {
-        const response = await $fetch('/api/settings', {
-          method: 'PUT',
-          body: partialSettings,
-          headers: authStore.authHeader
-        })
-
-        if (response.success) {
-          this.appSettings = { ...this.appSettings, ...response.data }
-          return { success: true }
-        }
-
-        return { success: false, message: response.message }
-      } catch (error) {
-        return { success: false, message: error.data?.message || '保存失败' }
-      }
-    },
 
     async fetchPublicApiConfig() {
       const authStore = useAuthStore()

@@ -74,15 +74,8 @@ const { form: privateForm, saving, load, save } = useConfigForm({
   successMessage: '登录上传配置已保存'
 })
 
-function toggleConvertFormat(format) {
-  if (format === 'webp') {
-    privateForm.convertToWebp = !privateForm.convertToWebp
-    if (privateForm.convertToWebp) privateForm.convertToPng = false
-  } else if (format === 'png') {
-    privateForm.convertToPng = !privateForm.convertToPng
-    if (privateForm.convertToPng) privateForm.convertToWebp = false
-  }
-}
+
+const { toggleConvertFormat } = useConvertToggle(privateForm)
 
 onMounted(load)
 </script>

@@ -63,8 +63,8 @@ async function fetchPackageJson(url) {
 }
 
 function compareVersions(v1, v2) {
-  const parts1 = v1.replace(/^v/, '').split('.').map(Number)
-  const parts2 = v2.replace(/^v/, '').split('.').map(Number)
+  const parts1 = v1.replace(/^v/, '').split('.').map(p => parseInt(p) || 0)
+  const parts2 = v2.replace(/^v/, '').split('.').map(p => parseInt(p) || 0)
 
   for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
     const num1 = parts1[i] || 0

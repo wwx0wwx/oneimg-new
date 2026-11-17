@@ -29,7 +29,7 @@ async function waitForReady() {
       const r = await fetch(`http://127.0.0.1:${PORT}/api/settings/public`, { signal: AbortSignal.timeout(1500) })
       httpOk = r.ok
     } catch {}
-    if (httpOk && /OneImg@\w+/.test(log)) return
+    if (httpOk && /OneImg@[A-Za-z0-9_-]+/.test(log)) return
     await new Promise(r => setTimeout(r, 500))
   }
   throw new Error('实例未就绪:\n' + log.slice(-2000))
@@ -46,7 +46,7 @@ process.on('SIGINT', () => { cleanup(); process.exit(130) })
 
 try {
   await waitForReady()
-  const pw = log.match(/OneImg@\w+/)?.[0]
+  const pw = log.match(/OneImg@[A-Za-z0-9_-]+/)?.[0]
   if (!pw) throw new Error('未找到初始密码')
   console.log(`[e2e] 实例就绪 http://127.0.0.1:${PORT} (数据: ${DATA_DIR})`)
 

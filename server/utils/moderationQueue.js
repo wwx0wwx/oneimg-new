@@ -299,7 +299,6 @@ async function processQueue() {
     }
 
     // 成功或不需要重试，重置重试计数
-    currentTaskRetryCount = 0
   } catch (error) {
     console.error('[ModerationQueue] 队列处理错误:', error)
   }

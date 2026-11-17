@@ -87,7 +87,7 @@ export async function send(config, payload) {
 
     if (imageBuffer) {
       const caption = buildTelegramMessage(payload, false)
-      const format = payload.data?.format || getExtensionFromContentType('image/jpeg')
+      const format = payload.data?.format || 'jpg'
       const contentType = `image/${format === 'jpg' ? 'jpeg' : format}`
 
       try {

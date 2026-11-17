@@ -127,6 +127,5 @@ export const useAuthStore = defineStore('auth', {
     },
     role: (state) => state.user?.role || 'anonymous',
     isAdmin: (state) => state.isAuthenticated && state.user?.role === 'admin',
-    isRegularUser: (state) => state.isAuthenticated && state.user?.role === 'user'
   }
 })

@@ -10,7 +10,8 @@ import { isBlacklisted } from '../../utils/ipBlacklist.js'
 
 // 与管理员最大上传限制对齐（角色限额由 validateMediaByConfig 统一校验），
 // 此处仅做硬上限兜底，避免 base64 载荷无界膨胀
-const MAX_BASE64_SIZE = 100 * 1024 * 1024
+// 与 nitro bodySizeLimit 16MB 一致（base64 膨胀 ×4/3 ≈ 12MB 实际二进制）
+const MAX_BASE64_SIZE = 12 * 1024 * 1024
 
 function parseBase64Media(base64String) {
   let base64Data = base64String

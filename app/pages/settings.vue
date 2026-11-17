@@ -350,7 +350,7 @@ async function saveAnnouncementSettings() {
   savingAnnouncement.value = true
 
   try {
-    const result = await settingsStore.updateAppSetting({
+    const result = await settingsStore.saveAppSettings({
       announcement: {
         enabled: announcementSettings.enabled,
         content: announcementSettings.content,

@@ -8,7 +8,6 @@ export const useMediaStore = defineStore('media', {
     error: null,
     // reset 请求被在途 loading 吞掉时记录，待在途完成后补偿执行
     pendingReset: false,
-    currentUserRole: 'anonymous',
     pagination: {
       page: 1,
       limit: 20,
@@ -56,7 +55,6 @@ export const useMediaStore = defineStore('media', {
             this.mediaItems.push(...items)
           }
 
-          this.currentUserRole = response.data.currentUserRole || 'anonymous'
           this.pagination = response.data.pagination
           this.hasMore = this.pagination.page < this.pagination.totalPages
         }

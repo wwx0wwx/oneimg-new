@@ -97,7 +97,7 @@ async function handleConfirm() {
   if (confirming.value) return
   confirming.value = true
   try {
-    await emit('confirm')
+    emit('confirm')
   } finally {
     confirming.value = false
   }

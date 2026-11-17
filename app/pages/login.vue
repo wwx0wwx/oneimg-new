@@ -101,6 +101,7 @@ import { useAuthStore } from '~/stores/auth'
 import { useToastStore } from '~/stores/toast'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const toastStore = useToastStore()
 
@@ -117,7 +118,7 @@ const showPassword = ref(false)
 // 如果已登录，重定向到首页
 onMounted(() => {
   if (authStore.isAuthenticated) {
-    router.push('/')
+    router.push(route.query.redirect || '/')
   }
 })
 
@@ -135,7 +136,7 @@ async function handleLogin() {
 
     if (result.success) {
       toastStore.success('登录成功')
-      router.push('/')
+      router.push(route.query.redirect || '/')
     } else {
       toastStore.error(result.message || '用户名或密码错误')
     }

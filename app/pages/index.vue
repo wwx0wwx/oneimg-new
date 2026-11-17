@@ -26,13 +26,14 @@
     </div>
 
     <section>
-      <div v-if="mediaStore.loading && mediaStore.mediaItems.length === 0" class="flex justify-center py-12">
-        <Loading size="lg" />
-      </div>
-
-      <div v-if="!authStore.isAuthenticated && mediaStore.mediaItems.length > 0" class="mb-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 text-sm text-blue-700 dark:text-blue-300">
+      <!-- 匿名访客提示横幅（独立 v-if，不参与后续条件链——H2 修复） -->
+      <div v-if="!authStore.isAuthenticated && !mediaStore.loading && !mediaStore.error" class="mb-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 text-sm text-blue-700 dark:text-blue-300">
         <Icon name="heroicons:information-circle" class="w-4 h-4 inline mr-1" />
         以下是公开分享的媒体。要上传自己的图片，请先登录（账号由管理员分配）。
+      </div>
+
+      <div v-if="mediaStore.loading && mediaStore.mediaItems.length === 0" class="flex justify-center py-12">
+        <Loading size="lg" />
       </div>
 
       <div v-else-if="mediaStore.error" class="text-center py-16">
@@ -415,13 +416,13 @@ async function handleCopyMultiple(type, items) {
 }
 
 async function handleSetAsBackground(url) {
-  const result = await settingsStore.updateAppSetting({ backgroundUrl: url })
+  const result = await settingsStore.saveAppSettings({ backgroundUrl: url })
   if (result.success) toastStore.success('已设置为全局背景')
   else toastStore.error(result.message || '设置失败')
 }
 
 async function handleSetAsLogo(url) {
-  const result = await settingsStore.updateAppSetting({ appLogo: url })
+  const result = await settingsStore.saveAppSettings({ appLogo: url })
   if (result.success) toastStore.success('已设置为网站 Logo')
   else toastStore.error(result.message || '设置失败')
 }

@@ -31,18 +31,14 @@ export default defineEventHandler(async (event) => {
         [NOTIFICATION_TYPES.UPLOAD]: keepBool(types?.upload, current.types.upload),
         [NOTIFICATION_TYPES.NSFW_DETECTED]: keepBool(types?.nsfw, current.types.nsfw)
       },
+      // webhook 字段与 telegram/email/serverchan 同样保留库中现值（中危3：
+      // 此前未传 webhook 时整组回退硬编码默认，清空已配好的 URL/headers）
       webhook: {
-        url: webhook?.url || '',
-        method: webhook?.method || 'POST',
-        contentType: webhook?.contentType || 'application/json',
-        headers: webhook?.headers || {},
-        bodyTemplate: webhook?.bodyTemplate || JSON.stringify({
-          type: '{{type}}',
-          title: '{{title}}',
-          message: '{{message}}',
-          timestamp: '{{timestamp}}',
-          data: '{{data}}'
-        }, null, 2)
+        url: webhook?.url ?? current.webhook.url,
+        method: webhook?.method ?? current.webhook.method,
+        contentType: webhook?.contentType ?? current.webhook.contentType,
+        headers: webhook?.headers ?? current.webhook.headers,
+        bodyTemplate: webhook?.bodyTemplate ?? current.webhook.bodyTemplate
       },
       telegram: {
         token: keepOr(telegram?.token, current.telegram.token),

@@ -75,7 +75,7 @@
           <!-- 提示文字 -->
           <div class="space-y-2 sm:space-y-3">
             <p class="text-base sm:text-lg font-medium text-gray-700 dark:text-gray-300">
-              <span class="block sm:inline">点击、拖拽或粘贴上传图片</span>
+              <span class="block sm:inline">点击、拖拽或粘贴上传</span>
               <span v-if="authStore.isAuthenticated" class="block sm:inline">
                 <span class="hidden sm:inline">{{ ' ' }} 或 {{ ' ' }}</span>
                 <span class="sm:hidden"> 或 </span>
@@ -214,11 +214,11 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { formatFileSize } from '~/utils/format'
 import { useAuthStore } from '~/stores/auth'
 import { useMediaStore } from '~/stores/media'
 import { useSettingsStore } from '~/stores/settings'
 import { useToastStore } from '~/stores/toast'
-import { formatFileSize } from '~/utils/format'
 
 // 延迟函数
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms))
@@ -234,6 +234,8 @@ const isUploading = ref(false)
 const uploadProgress = ref('上传中...')
 const configLoaded = ref(false)
 const showAllFormats = ref(false)
+// URL 导入成功数（组件级，handleSSEEvent 与 finally 均可访问——H3 修复作用域）
+const urlImportSuccessCount = ref(0)
 
 // URL上传相关
 const showUrlModal = ref(false)
@@ -576,7 +578,6 @@ async function handleUrlUpload() {
   // 路由离开时中断 SSE 流，避免 reader 更新已卸载组件
   onUnmounted(() => abortController.abort())
 
-  let importSuccessCount = 0
   try {
     // 使用fetch发送POST请求，然后读取SSE响应
     const response = await fetch('/api/upload/urls', {
@@ -637,7 +638,7 @@ async function handleUrlUpload() {
     toastStore.error(error.message || '上传失败，请稍后重试')
   } finally {
     urlUploadInProgress.value = false
-    if (importSuccessCount > 0) {
+    if (urlImportSuccessCount.value > 0) {
       await mediaStore.fetchMedia(true)
     }
   }
@@ -672,7 +673,7 @@ function handleSSEEvent(eventType, data) {
     case 'complete':
       // 完成事件
       const { successCount, failCount } = data
-      importSuccessCount = successCount
+      urlImportSuccessCount.value = successCount
       if (successCount > 0 && failCount === 0) {
         toastStore.success(`成功导入 ${successCount} 个媒体项`)
       } else if (successCount > 0 && failCount > 0) {

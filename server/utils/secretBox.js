@@ -58,8 +58,9 @@ export function maskSecret(value = '') {
   return '****' + text.slice(-4)
 }
 
-// 判断客户端提交的是否为脱敏占位（避免把掩码存回数据库）
+// 判断客户端提交的是否为脱敏占位（避免把掩码存回数据库）。
+// 空串不是掩码——管理员清空密钥是合法操作（中危10）
 export function isMaskedSecret(value = '') {
   const text = String(value ?? '')
-  return text === '' || text === '****' || /^\*{4}.{0,4}$/.test(text)
+  return text === '****' || /^\*{4}.{1,4}$/.test(text)
 }

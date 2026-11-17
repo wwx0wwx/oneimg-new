@@ -40,5 +40,8 @@ ENV PORT=8888
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD wget -qO- http://127.0.0.1:8888/api/settings/public || exit 1
 
+# 非特权用户运行
+USER node
+
 # 启动应用
 CMD ["node", ".output/server/index.mjs"]

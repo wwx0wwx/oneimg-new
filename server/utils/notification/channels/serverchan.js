@@ -56,10 +56,14 @@ export async function send(config, payload) {
       }
     }
 
-    const escapeMd = (v = '') => String(v).replace(/([_*`\[\]])/g, '\\$1')
+    // 先转义再拼接（转义加粗标记外的部分；括号也需转义防链接注入）
+    const escapeMd = (v = '') => String(v).replace(/([_*`\[\]()])/g, '\\$1')
     await postServerChan(serverchan.sendKey, new URLSearchParams({
       text: escapeMd(payload.title),
-      desp: escapeMd(content)
+      desp: content
+        .split(/(\*\*[^*]+\*\*)/)  // 保留 **bold** 标记
+        .map(part => part.startsWith('**') ? part : escapeMd(part))
+        .join('')
     }))
 
     console.log('[Notification] Server酱通知发送成功:', payload.title)

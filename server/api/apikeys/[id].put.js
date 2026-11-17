@@ -61,12 +61,15 @@ export default defineEventHandler(async (event) => {
     await db.apikeys.update({ _id: id }, { $set: updateData })
     const updatedKey = await db.apikeys.findOne({ _id: id })
 
+    // 仅重新生成时一次性返回完整 key（日常更新掩码回显）
+    const shouldRevealKey = regenerate === true
+    const maskedKey = updatedKey.key ? updatedKey.key.slice(0, 7) + '****' + updatedKey.key.slice(-4) : updatedKey.key
     return {
       success: true,
       message: 'API Key 更新成功',
       data: {
         id: updatedKey._id,
-        key: updatedKey.key,
+        key: shouldRevealKey ? updatedKey.key : maskedKey,
         name: updatedKey.name,
         isDefault: updatedKey.isDefault,
         enabled: updatedKey.enabled,

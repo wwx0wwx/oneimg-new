@@ -53,7 +53,6 @@ export default defineEventHandler(async (event) => {
     setHeader(event, 'ETag', etag)
     setHeader(event, 'Last-Modified', new Date(media.updatedAt || media.uploadedAt || Date.now()).toUTCString())
     setHeader(event, 'X-Content-Type-Options', 'nosniff')
-    setHeader(event, 'Accept-Ranges', 'bytes')
     setHeader(event, 'Cache-Control', cacheable ? `public, max-age=${maxAge}, immutable` : 'private, no-store, no-cache, must-revalidate')
 
     // SVG 可内嵌脚本且与站点同源，直接在浏览器顶层打开会执行任意 JS

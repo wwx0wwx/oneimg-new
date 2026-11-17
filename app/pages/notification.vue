@@ -366,7 +366,7 @@
               :disabled="testing === 'serverchan' || !config.serverchan.sendKey"
             >
               <Icon name="heroicons:paper-airplane" class="w-4 h-4 mr-2" />
-              {{ testingServerChan ? '测试中...' : '发送测试通知' }}
+              {{ testing === 'serverchan' ? '测试中...' : '发送测试通知' }}
             </button>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
               点击发送一条测试通知，验证 Server酱 配置是否正确
@@ -529,7 +529,6 @@ onMounted(() => {
 // 统一测试入口：四个渠道的测试请求只有 method/payload 不同（历史上 130 行 × 4 份拷贝）
 async function runChannelTest(method) {
   testing.value = method
-  testResult.value = null
   try {
     const body = {
       method,

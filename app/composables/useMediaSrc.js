@@ -4,7 +4,7 @@ import { useAuthStore } from '~/stores/auth'
 // 私有媒体（visibility=private 及需要鉴权的预览接口）无法通过 <img src> 加载——
 // 标签请求携带不了 Authorization 头，会得到 403"加载失败"。
 // 这里统一处理：公开媒体直接用直链；需要鉴权的媒体用 fetch + Blob URL。
-const blobUrlCache = new Map() // key: url, value: { objectUrl, lastUsed }
+const blobUrlCache = new Map() // key: `${userId}:${url}`, value: { objectUrl, lastUsed }
 const BLOB_CACHE_MAX = 50      // LRU 上限：超出时回收最久未用（B3 内存泄漏）
 
 function touchCacheEntry(url) {
@@ -25,10 +25,12 @@ function evictIfNeeded() {
   }
 }
 
-async function fetchAuthorizedBlobUrl(url, token) {
-  const cached = blobUrlCache.get(url)
+async function fetchAuthorizedBlobUrl(url, token, userId = '') {
+  // 缓存 key 按用户区分（防止登出换号后命中前一账号的 blob——中危11）
+  const cacheKey = `${userId}:${url}`
+  const cached = blobUrlCache.get(cacheKey)
   if (cached) {
-    touchCacheEntry(url)
+    touchCacheEntry(cacheKey)
     return cached.objectUrl
   }
 
@@ -42,7 +44,7 @@ async function fetchAuthorizedBlobUrl(url, token) {
 
   const blob = await response.blob()
   const objectUrl = URL.createObjectURL(blob)
-  blobUrlCache.set(url, { objectUrl, lastUsed: Date.now() })
+  blobUrlCache.set(cacheKey, { objectUrl, lastUsed: Date.now() })
   evictIfNeeded()
   return objectUrl
 }
@@ -87,7 +89,7 @@ export function useMediaSrc(getMedia) {
     loading.value = true
     error.value = false
     try {
-      const objectUrl = await fetchAuthorizedBlobUrl(url, authStore.token)
+      const objectUrl = await fetchAuthorizedBlobUrl(url, authStore.token, authStore.user?.id || 'anon')
       if (token !== requestToken) return // 已切换到其他媒体，丢弃过期结果
       src.value = objectUrl
     } catch (e) {

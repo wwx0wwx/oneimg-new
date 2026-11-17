@@ -1,5 +1,7 @@
 import { requireAdmin } from '../../utils/auth.js'
 import { testWebhook, testTelegram, testEmail, testServerChan } from '../../utils/notification/index.js'
+import { isMaskedSecret } from '../../utils/secretBox.js'
+import { getNotificationConfig } from '../../utils/notification/index.js'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -8,11 +10,15 @@ export default defineEventHandler(async (event) => {
     const body = await readBody(event)
     const { webhook, telegram, email, serverchan, method } = body
 
+    // 掩码密钥替换为库中真实值（GET 返回掩码，管理员刷新后再点测试时回传的是 ****）
+    const current = await getNotificationConfig()
+    const unmask = (incoming, existing) => (isMaskedSecret(incoming) ? existing : incoming)
+
     if (method === 'serverchan') {
       if (!serverchan?.sendKey) {
         throw createError({ statusCode: 400, message: '请提供 Server酱 SendKey' })
       }
-      const result = await testServerChan({ sendKey: serverchan.sendKey })
+      const result = await testServerChan({ sendKey: unmask(serverchan?.sendKey, current.serverchan.sendKey) })
       return { success: !!result.success, message: result.success ? '测试通知发送成功' : (result.error || '测试失败') }
     }
 
@@ -23,7 +29,7 @@ export default defineEventHandler(async (event) => {
       const result = await testEmail({
         service: email.service,
         user: email.user,
-        pass: email.pass,
+        pass: unmask(email.pass, current.email.pass),
         to: email.to || ''
       })
       return { success: !!result.success, message: result.success ? '测试通知发送成功' : (result.error || '测试失败') }
@@ -33,7 +39,7 @@ export default defineEventHandler(async (event) => {
       if (!telegram?.token || !telegram?.chatId) {
         throw createError({ statusCode: 400, message: '请提供 Telegram Token 和 Chat ID' })
       }
-      const result = await testTelegram({ token: telegram.token, chatId: telegram.chatId })
+      const result = await testTelegram({ token: unmask(telegram.token, current.telegram.token), chatId: telegram.chatId })
       return { success: !!result.success, message: result.success ? '测试通知发送成功' : (result.error || '测试失败') }
     }
 

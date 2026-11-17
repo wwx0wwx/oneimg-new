@@ -4,7 +4,11 @@
 
     <div class="space-y-6">
       <div class="card p-6">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">数据管理</h2>
+        <div v-if="statsError" class="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-300 flex items-center justify-between">
+            <span>{{ statsError }}</span>
+            <button class="btn-secondary text-xs" @click="refreshStats">重试</button>
+          </div>
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">数据管理</h2>
 
         <div class="space-y-4">
           <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">

@@ -209,15 +209,6 @@ const behavior = useConfigForm({
   successMessage: '公共上传配置已保存'
 })
 
-function toggleConvertFormat(format) {
-  if (format === 'webp') {
-    behavior.form.convertToWebp = !behavior.form.convertToWebp
-    if (behavior.form.convertToWebp) behavior.form.convertToPng = false
-  } else if (format === 'png') {
-    behavior.form.convertToPng = !behavior.form.convertToPng
-    if (behavior.form.convertToPng) behavior.form.convertToWebp = false
-  }
-}
 
 const anonymousMaxSizeMB = computed({
   get: () => Math.round(policy.form.anonymousMaxFileSize / (1024 * 1024)),
