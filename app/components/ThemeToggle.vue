@@ -34,7 +34,7 @@ const syncFromDOM = () => {
 
 onMounted(() => {
   // 从 localStorage 读取主题设置
-  const savedTheme = localStorage.getItem('theme')
+  const savedTheme = localStorage.getItem('oneimg-theme')
   let shouldBeDark = false
 
   if (savedTheme) {
@@ -64,7 +64,7 @@ const applyThemeChange = (newDarkState) => {
     document.documentElement.classList.remove('dark')
   }
   isDark.value = newDarkState
-  localStorage.setItem('theme', newDarkState ? 'dark' : 'light')
+  localStorage.setItem('oneimg-theme', newDarkState ? 'dark' : 'light')
 }
 
 const toggle = async (event) => {

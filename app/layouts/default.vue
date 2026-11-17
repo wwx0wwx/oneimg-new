@@ -201,7 +201,7 @@ function updateFavicon(url) {
 
 // 监听 appLogo 变化，立即更新 favicon
 watch(appLogo, (newLogo) => {
-  updateFavicon(newLogo)
+  if (newLogo) updateFavicon(newLogo)
 }, { immediate: true })
 
 // 动态设置页面标题

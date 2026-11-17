@@ -42,7 +42,3 @@ export default defineEventHandler(async (event) => {
   }
 })
 
-export function clearStatsCache() {
-  statsCache = null
-  statsCacheTime = 0
-}

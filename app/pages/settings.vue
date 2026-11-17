@@ -319,6 +319,7 @@ async function saveAppSettings() {
 
   if (!settingsStore.appSettingsLoaded) {
     toastStore.error('应用设置未成功加载，已阻止保存（避免覆盖线上配置）')
+    savingApp.value = false
     return
   }
 

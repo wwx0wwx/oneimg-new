@@ -52,14 +52,14 @@ async function dailyMaintenance() {
 async function retryFailedModerationTasks() {
   try {
     // 获取 error 状态的任务数量
-    const errorCount = await db.moderationTasks.count({ status: 'error' })
+    const failedCount = await db.moderationTasks.count({ status: 'failed' })
 
-    if (errorCount === 0) {
+    if (failedCount === 0) {
       console.log('[Scheduler] 没有需要重试的失败审核任务')
       return
     }
 
-    console.log(`[Scheduler] 发现 ${errorCount} 个失败的审核任务，开始重试...`)
+    console.log(`[Scheduler] 发现 ${failedCount} 个失败的审核任务，开始重试...`)
     const result = await retryFailedTasks()
     console.log(`[Scheduler] 已重置 ${result.count} 个失败的审核任务`)
   } catch (error) {

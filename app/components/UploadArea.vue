@@ -248,7 +248,8 @@ watch(showUrlModal, (visible) => {
 })
 
 // 配置
-const allowedFormats = ref(['jpeg', 'jpg', 'png', 'gif', 'webp', 'avif', 'svg', 'bmp', 'ico', 'apng', 'tiff', 'tif', 'mp4', 'webm', 'mov'])
+import { MEDIA_FORMATS } from '../../shared/mediaFormats.js'
+const allowedFormats = ref([...MEDIA_FORMATS])
 const maxFileSize = ref(10 * 1024 * 1024) // 10MB
 // 初始值为 null，表示配置尚未加载
 const publicApiEnabled = ref(null)
@@ -367,6 +368,9 @@ function handlePaste(event) {
     uploadFiles(files)
   }
 }
+
+// SSE abort 控制器（组件级，onUnmounted 统一清理）
+let sseAbortController = null
 
 // 全局粘贴监听
 function globalPasteHandler(event) {
@@ -567,6 +571,7 @@ async function handleUrlUpload() {
   // 路由离开时中断 SSE 流，避免 reader 更新已卸载组件
   onUnmounted(() => abortController.abort())
 
+  let importSuccessCount = 0
   try {
     // 使用fetch发送POST请求，然后读取SSE响应
     const response = await fetch('/api/upload/urls', {
@@ -627,7 +632,7 @@ async function handleUrlUpload() {
     toastStore.error(error.message || '上传失败，请稍后重试')
   } finally {
     urlUploadInProgress.value = false
-    if (urlUploadProgress.value.completed > 0) {
+    if (importSuccessCount > 0) {
       await mediaStore.fetchMedia(true)
     }
   }
@@ -662,6 +667,7 @@ function handleSSEEvent(eventType, data) {
     case 'complete':
       // 完成事件
       const { successCount, failCount } = data
+      importSuccessCount = successCount
       if (successCount > 0 && failCount === 0) {
         toastStore.success(`成功导入 ${successCount} 个媒体项`)
       } else if (successCount > 0 && failCount > 0) {
@@ -690,6 +696,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   document.removeEventListener('paste', globalPasteHandler)
+  sseAbortController?.abort()
 })
 </script>
 

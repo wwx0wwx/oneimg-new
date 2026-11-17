@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { useAuthStore } from './auth'
 
-const DEFAULT_MEDIA_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'svg', 'bmp', 'ico', 'apng', 'tiff', 'mp4', 'webm', 'mov']
+import { MEDIA_FORMATS } from '../../shared/mediaFormats.js'
+const DEFAULT_MEDIA_EXTENSIONS = [...MEDIA_FORMATS]
 
 export const useSettingsStore = defineStore('settings', {
   state: () => ({

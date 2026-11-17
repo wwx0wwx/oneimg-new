@@ -121,6 +121,9 @@ export async function sniffMediaFormat(buffer, mediaType) {
       // sharp 无法解析：ico/cur 特例（sharp 不支持）
       if (buffer.length > 4 && buffer[0] === 0 && buffer[1] === 0 && buffer[2] === 1 && buffer[3] === 0) return 'ico'
       if (buffer.length > 4 && buffer[0] === 0 && buffer[1] === 0 && buffer[2] === 2 && buffer[3] === 0) return 'ico'
+      // SVG 无 width/height 时 sharp 的 svgload 报 bad dimensions（B8）
+      const head = buffer.subarray(0, 300).toString('utf8').trim().toLowerCase()
+      if (head.startsWith('<?xml') || head.startsWith('<svg') || head.includes('<svg')) return 'svg'
       return null
     }
     return null

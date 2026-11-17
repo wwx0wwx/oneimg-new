@@ -50,6 +50,12 @@ export default defineNuxtConfig({
     head: {
       htmlAttrs: { lang: 'zh-CN' },
       title: 'OneImg',
+      script: [
+        {
+          innerHTML: `try{var t=localStorage.getItem('oneimg-theme');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark');document.documentElement.style.colorScheme='dark'}}catch(e){}`,
+          tagPosition: 'head'
+        }
+      ],
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
@@ -67,13 +73,7 @@ export default defineNuxtConfig({
     },
     routeRules: {
       '/**': { headers: { 'x-powered-by': '' } },
-      '/api/**': {
-        cors: false,
-        headers: {
-          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key'
-        }
-      },
+      // CORS：无 ACAO = 跨域不可读（设计如此）
       // 全站 CSP 由 server/plugins/csp-nonce.js 统一下发（唯一出口）：
       // script-src 带 nonce；style-src 保留 unsafe-inline（SPA 动态样式注入所需）。
       // SVG 直链由 /i/ 处理器下发更严格的专属 CSP。

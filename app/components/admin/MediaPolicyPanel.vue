@@ -140,7 +140,8 @@ import { useSettingsStore } from '~/stores/settings'
 // 「匿名与安全」面板：媒体策略（mediaConfig）+ 匿名上传行为（publicApiConfig）
 const settingsStore = useSettingsStore()
 
-const availableFormats = ['jpeg', 'jpg', 'png', 'gif', 'webp', 'avif', 'svg', 'bmp', 'ico', 'apng', 'tiff', 'mp4', 'webm', 'mov']
+import { MEDIA_FORMATS } from '../../../shared/mediaFormats.js'
+const availableFormats = [...MEDIA_FORMATS]
 
 // 内容安全默认值（密钥一律来自服务端环境变量，前端不持有）
 const defaultContentSafetyConfig = {

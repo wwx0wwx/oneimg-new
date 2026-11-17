@@ -62,7 +62,7 @@ export const MODERATION_PROVIDERS = {
 export function getDefaultContentSafetyConfig() {
   return {
     enabled: false,
-    provider: 'elysiatools',  // 默认使用免费的 elysiatools
+    provider: 'nsfwdet',  // 默认使用 nsfwdet（elysiatools API 已下线）
     autoBlacklistIp: false,  // 是否自动将违规 IP 加入黑名单
     providers: Object.fromEntries(
       Object.entries(MODERATION_PROVIDERS).map(([key, config]) => [

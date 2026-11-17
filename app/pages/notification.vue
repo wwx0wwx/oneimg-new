@@ -170,12 +170,12 @@
           <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
             <button
               type="button"
-              @click="testWebhook"
+              @click="runChannelTest('webhook')"
               class="btn-secondary"
-              :disabled="testing || !config.webhook.url"
+              :disabled="testing === 'webhook' || !config.webhook.url"
             >
               <Icon name="heroicons:paper-airplane" class="w-4 h-4 mr-2" />
-              {{ testing ? '测试中...' : '发送测试通知' }}
+              {{ testing === 'webhook' ? '测试中...' : '发送测试通知' }}
             </button>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
               点击发送一条测试通知，验证 Webhook 配置是否正确
@@ -228,12 +228,12 @@
           <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
             <button
               type="button"
-              @click="testTelegram"
+              @click="runChannelTest('telegram')"
               class="btn-secondary"
-              :disabled="testingTelegram || !config.telegram.token || !config.telegram.chatId"
+              :disabled="testing === 'telegram' || !config.telegram.token || !config.telegram.chatId"
             >
               <Icon name="heroicons:paper-airplane" class="w-4 h-4 mr-2" />
-              {{ testingTelegram ? '测试中...' : '发送测试通知' }}
+              {{ testing === 'telegram' ? '测试中...' : '发送测试通知' }}
             </button>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
               点击发送一条测试通知，验证 Telegram 配置是否正确
@@ -318,12 +318,12 @@
           <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
             <button
               type="button"
-              @click="testEmail"
+              @click="runChannelTest('email')"
               class="btn-secondary"
-              :disabled="testingEmail || !config.email.service || !config.email.user || !config.email.pass"
+              :disabled="testing === 'email' || !config.email.service || !config.email.user || !config.email.pass"
             >
               <Icon name="heroicons:paper-airplane" class="w-4 h-4 mr-2" />
-              {{ testingEmail ? '测试中...' : '发送测试通知' }}
+              {{ testing === 'email' ? '测试中...' : '发送测试通知' }}
             </button>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
               点击发送一条测试通知，验证邮件配置是否正确
@@ -360,9 +360,9 @@
           <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
             <button
               type="button"
-              @click="testServerChan"
+              @click="runChannelTest('serverchan')"
               class="btn-secondary"
-              :disabled="testingServerChan || !config.serverchan.sendKey"
+              :disabled="testing === 'serverchan' || !config.serverchan.sendKey"
             >
               <Icon name="heroicons:paper-airplane" class="w-4 h-4 mr-2" />
               {{ testingServerChan ? '测试中...' : '发送测试通知' }}
@@ -380,7 +380,7 @@
           type="button"
           @click="saveConfig"
           class="btn-primary"
-          :disabled="saving"
+          :disabled="saving || loading"
         >
           {{ saving ? '保存中...' : '保存设置' }}
         </button>
@@ -466,10 +466,7 @@ const templateVars = {
 // 加载状态
 const loading = ref(false)
 const saving = ref(false)
-const testing = ref(false)
-const testingTelegram = ref(false)
-const testingEmail = ref(false)
-const testingServerChan = ref(false)
+const testing = ref('')
 
 // 获取配置
 async function fetchConfig() {
@@ -523,14 +520,6 @@ async function saveConfig() {
   }
 }
 
-// 测试 Webhook
-
-// 测试 Telegram
-
-// 测试 Email
-
-// 测试 Server酱
-
 // 初始化
 onMounted(() => {
   fetchConfig()
@@ -543,17 +532,16 @@ async function runChannelTest(method) {
   try {
     const body = {
       method,
-      webhook: { url: notifForm.webhook.url, method: notifForm.webhook.method, contentType: notifForm.webhook.contentType, headers: notifForm.webhook.headers, bodyTemplate: notifForm.webhook.bodyTemplate },
-      telegram: { token: notifForm.telegram.token, chatId: notifForm.telegram.chatId },
-      email: { service: notifForm.email.service, user: notifForm.email.user, pass: notifForm.email.pass, to: notifForm.email.to },
-      serverchan: { sendKey: notifForm.serverchan.sendKey }
+      webhook: { url: config.webhook.url, method: config.webhook.method, contentType: config.webhook.contentType, headers: config.webhook.headers, bodyTemplate: config.webhook.bodyTemplate },
+      telegram: { token: config.telegram.token, chatId: config.telegram.chatId },
+      email: { service: config.email.service, user: config.email.user, pass: config.email.pass, to: config.email.to },
+      serverchan: { sendKey: config.serverchan.sendKey }
     }
     const response = await $fetch('/api/notification/test', {
       method: 'POST',
       headers: authStore.authHeader,
       body
     })
-    testResult.value = response
     if (response.success) {
       toastStore.success('测试通知发送成功')
     } else {

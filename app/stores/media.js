@@ -5,7 +5,6 @@ export const useMediaStore = defineStore('media', {
   state: () => ({
     mediaItems: [],
     loading: false,
-    uploading: false,
     error: null,
     // reset 请求被在途 loading 吞掉时记录，待在途完成后补偿执行
     pendingReset: false,
@@ -91,11 +90,6 @@ export const useMediaStore = defineStore('media', {
       if (this.error) {
         this.pagination.page = prevPage
       }
-    },
-
-    prependMedia(item) {
-      this.mediaItems.unshift(item)
-      this.pagination.total += 1
     },
 
     async deleteMedia(id) {

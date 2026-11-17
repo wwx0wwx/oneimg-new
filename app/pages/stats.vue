@@ -357,6 +357,7 @@ const resolvedPreviewSrc = computed(() => previewSrc.src.value || '')
 const unmarkingNsfw = ref(false)
 const showClearNsfwModal = ref(false)
 
+const statsError = ref(null)
 const stats = reactive({
   totalImages: 0,
   publicImages: 0,
@@ -402,6 +403,7 @@ async function fetchStats(refresh = false) {
       Object.assign(stats, response.data)
     }
   } catch (error) {
+    statsError.value = '统计加载失败，请刷新重试'
     console.error('获取统计数据失败:', error)
   } finally {
     loadingStats.value = false
