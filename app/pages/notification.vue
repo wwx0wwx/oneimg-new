@@ -82,7 +82,7 @@
       </div>
 
       <!-- Webhook 配置 -->
-      <div class="card p-6" v-if="config.enabled && config.method === 'webhook'">
+      <div class="card p-6" v-if="config.method === 'webhook'">
         <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           <Icon name="heroicons:link" class="w-5 h-5 inline-block mr-2 text-primary-500" />
           Webhook 配置
@@ -186,7 +186,7 @@
       </div>
 
       <!-- Telegram 配置 -->
-      <div class="card p-6" v-if="config.enabled && config.method === 'telegram'">
+      <div class="card p-6" v-if="config.method === 'telegram'">
         <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           <Icon name="heroicons:chat-bubble-left-right" class="w-5 h-5 inline-block mr-2 text-primary-500" />
           Telegram 配置
@@ -244,7 +244,7 @@
       </div>
 
       <!-- Email 配置 -->
-      <div class="card p-6" v-if="config.enabled && config.method === 'email'">
+      <div class="card p-6" v-if="config.method === 'email'">
         <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           <Icon name="heroicons:envelope" class="w-5 h-5 inline-block mr-2 text-primary-500" />
           Email 配置
@@ -334,7 +334,7 @@
       </div>
 
       <!-- Server酱 配置 -->
-      <div class="card p-6" v-if="config.enabled && config.method === 'serverchan'">
+      <div class="card p-6" v-if="config.method === 'serverchan'">
         <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           <Icon name="heroicons:megaphone" class="w-5 h-5 inline-block mr-2 text-primary-500" />
           Server酱 配置

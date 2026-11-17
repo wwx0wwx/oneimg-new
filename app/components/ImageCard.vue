@@ -139,7 +139,7 @@
       </div>
       <div
         v-else-if="image.moderationStatus === 'failed'"
-        class="px-2 py-1 bg-orange-500/80 text-white text-xs rounded flex items-center gap-1"
+        class="px-2 py-1 bg-red-600 text-white text-xs rounded flex items-center gap-1 shadow-md"
       >
         <Icon name="heroicons:exclamation-circle" class="w-3 h-3" />
         审核失败

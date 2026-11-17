@@ -30,6 +30,11 @@
         <Loading size="lg" />
       </div>
 
+      <div v-if="!authStore.isAuthenticated && mediaStore.mediaItems.length > 0" class="mb-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 text-sm text-blue-700 dark:text-blue-300">
+        <Icon name="heroicons:information-circle" class="w-4 h-4 inline mr-1" />
+        以下是公开分享的媒体。要上传自己的图片，请先登录（账号由管理员分配）。
+      </div>
+
       <div v-else-if="mediaStore.error" class="text-center py-16">
         <Icon name="heroicons:wifi-slash" class="w-16 h-16 mx-auto text-red-300 mb-4" />
         <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">加载失败</h3>

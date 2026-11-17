@@ -87,7 +87,11 @@
               </span>
             </p>
             <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-              支持 {{ allowedFormats.join(', ').toUpperCase() }} 格式，可选择多张
+              支持 JPG / PNG / GIF / WebP / MP4 等 {{ allowedFormats.length }} 种格式
+              <button type="button" class="text-primary-500 hover:underline" @click.stop="showAllFormats = !showAllFormats">
+                {{ showAllFormats ? '收起' : '查看全部' }}
+              </button>
+              <span v-if="showAllFormats" class="block mt-1 text-xs text-gray-400">{{ allowedFormats.join(' · ').toUpperCase() }}</span>
             </p>
             <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
               单张最大 {{ formatFileSize(maxFileSize) }}
@@ -229,6 +233,7 @@ const isDragging = ref(false)
 const isUploading = ref(false)
 const uploadProgress = ref('上传中...')
 const configLoaded = ref(false)
+const showAllFormats = ref(false)
 
 // URL上传相关
 const showUrlModal = ref(false)
