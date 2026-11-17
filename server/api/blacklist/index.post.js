@@ -1,3 +1,4 @@
+import net from 'net'
 import { requireAdmin } from '../../utils/auth.js'
 import { addToBlacklist } from '../../utils/ipBlacklist.js'
 
@@ -15,10 +16,9 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const ipv4Regex = /^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/
-    const ipv6Regex = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::$|^([0-9a-fA-F]{1,4}:){1,7}:$|^:([0-9a-fA-F]{1,4}:){1,7}$|^([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}$/
-
-    if (!ipv4Regex.test(ip) && !ipv6Regex.test(ip)) {
+    // 用标准库校验（旧正则拒绝 ::1、::ffff:1.2.3.4 等常见 IPv6 写法，
+    // 与自动拉黑入库的原样形态不一致，导致手动黑名单永远打不中）
+    if (!net.isIP(String(ip))) {
       throw createError({
         statusCode: 400,
         message: 'IP 地址格式不正确'

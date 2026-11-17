@@ -35,6 +35,19 @@
           />
         </div>
 
+        <!-- 操作按钮 -->
+        <div class="absolute top-4 left-4 flex gap-2 z-10" @click.stop>
+          <button
+            v-if="resolvedSrc || src"
+            class="px-3 py-1.5 bg-white/10 hover:bg-white/20 backdrop-blur text-white text-sm rounded-lg flex items-center gap-1.5 transition-colors"
+            title="复制链接"
+            @click="copyLink"
+          >
+            <Icon name="heroicons:clipboard-document" class="w-4 h-4" />
+            <span class="hidden sm:inline">复制链接</span>
+          </button>
+        </div>
+
         <!-- 图片信息 -->
         <div
           v-if="info"
@@ -49,6 +62,8 @@
 </template>
 
 <script setup>
+import { ref, computed } from 'vue'
+import { copyToClipboard } from '~/utils/clipboard'
 const props = defineProps({
   visible: {
     type: Boolean,
@@ -86,6 +101,18 @@ const emit = defineEmits(['close'])
 
 const mediaSrc = useMediaSrc(() => props.media || { url: props.src })
 const resolvedSrc = computed(() => (props.media ? mediaSrc.src.value : props.src))
+
+function copyLink() {
+  const url = props.media?.url || props.src || ''
+  if (!url) return
+  const full = typeof window !== 'undefined' ? window.location.origin + url : url
+  copyToClipboard(full).then(() => {
+    // 轻量反馈：按钮文字闪换
+    toastCopied.value = true
+    setTimeout(() => { toastCopied.value = false }, 1500)
+  }).catch(() => {})
+}
+const toastCopied = ref(false)
 
 const close = () => {
   emit('close')

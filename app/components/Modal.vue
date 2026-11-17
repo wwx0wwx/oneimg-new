@@ -41,7 +41,7 @@
               v-if="showConfirm"
               @click="confirm"
               :class="confirmClass"
-              :disabled="confirmDisabled"
+              :disabled="confirmDisabled || confirming"
             >
               {{ confirmText }}
             </button>
@@ -53,6 +53,7 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
 const props = defineProps({
   visible: {
     type: Boolean,
@@ -89,6 +90,18 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'confirm'])
+const confirming = ref(false)
+
+// 防双击双发：确认动作期间禁用按钮
+async function handleConfirm() {
+  if (confirming.value) return
+  confirming.value = true
+  try {
+    await emit('confirm')
+  } finally {
+    confirming.value = false
+  }
+}
 
 const confirmClass = computed(() => {
   const baseClass = props.confirmType === 'danger' ? 'btn-danger' : 'btn-primary'

@@ -10,7 +10,7 @@
         </h2>
         <div class="space-y-4 text-sm text-gray-600 dark:text-gray-400">
           <p>
-            OneImg 是一个面向个人使用的统一媒体床，围绕 `media` 模型统一管理图片与视频的上传、访问、预览、提链与权限控制。
+            OneImg 是一个面向个人使用的统一媒体床，围绕 media 模型统一管理图片与视频的上传、访问、预览、提链与权限控制。
           </p>
           <p>
             当前版本重点是稳定性、权限正确性和链路完整性：用户是资源拥有者，API Key 只是上传凭证，匿名上传、用户上传和管理员上传都会严格落到统一的数据语义与后端权限控制上。
@@ -34,7 +34,7 @@
           项目说明
         </h2>
         <div class="space-y-3 text-sm text-gray-600 dark:text-gray-400">
-          <p>OneImg 使用 `Nuxt`、`Nitro Server API`、`Pinia` 与 `NeDB` 构建，适合个人与轻量团队自部署。</p>
+          <p>OneImg 使用 Nuxt、`Nitro Server API`、`Pinia` 与 NeDB 构建，适合个人与轻量团队自部署。</p>
           <p>当前版本支持图片与视频的统一媒体墙展示、批量删除、批量提链、匿名上传控制、登录上传、API Key 上传和后台用户管理。</p>
           <p>内容安全能力目前主要针对图片内容，视频仅提供基础上传、预览、访问与播放能力，不包含额外转码流程。</p>
         </div>

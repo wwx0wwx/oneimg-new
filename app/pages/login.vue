@@ -85,6 +85,10 @@
             <Loading v-if="loading" size="sm" class="text-white" />
             <span>{{ loading ? '登录中...' : '登录' }}</span>
           </button>
+
+          <p class="text-center text-xs text-gray-400 dark:text-gray-500">
+            账号由管理员分配 · 忘记密码请联系管理员重置
+          </p>
         </form>
       </div>
     </div>

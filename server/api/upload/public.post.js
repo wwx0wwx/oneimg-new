@@ -1,4 +1,5 @@
 import db from '../../utils/db.js'
+import { getClientIP } from '../../utils/mediaService.js'
 import { parseFormData } from '../../utils/media.js'
 import {
   checkPublicRateLimit,
@@ -12,7 +13,7 @@ import { USER_ROLES } from '../../utils/auth.js'
 import { getUploadPolicy, processingToFlat } from '../../utils/uploadPolicy.js'
 
 export default defineEventHandler(async (event) => {
-  const clientIP = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
+  const clientIP = getClientIP(event)
   // 并发计数只有 acquire 过才允许 release，避免计数漂移
   let concurrencyAcquired = false
 

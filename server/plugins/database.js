@@ -1,4 +1,5 @@
 import db from '../utils/db.js'
+import { DEFAULT_APP_SETTINGS } from '../utils/appSettingsDefaults.js'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import { v4 as uuidv4 } from 'uuid'
@@ -8,7 +9,8 @@ async function initDefaultUser() {
 
   if (!existingAdmin) {
     const defaultUsername = 'oneimg-admin'
-    const temporaryPassword = `OneImg@${Math.random().toString(36).slice(2, 10)}`
+    // 密码学安全随机（历史实现 Math.random 仅约 41bit 熵）
+    const temporaryPassword = `OneImg@${crypto.randomBytes(8).toString('base64url')}`
     const hashedPassword = await bcrypt.hash(temporaryPassword, 10)
     await db.users.insert({
       _id: uuidv4(),
@@ -21,26 +23,6 @@ async function initDefaultUser() {
       requirePasswordChange: true
     })
     console.warn(`[Database] 已初始化 OneImg 管理员账户，请立即登录后修改密码 (用户名: ${defaultUsername}, 临时密码: ${temporaryPassword})`)
-  }
-}
-
-async function initJwtSecret() {
-  let jwtSetting = await db.settings.findOne({ key: 'jwtSecret' })
-
-  if (!process.env.JWT_SECRET && !jwtSetting) {
-    const secret = crypto.randomBytes(64).toString('hex')
-    await db.settings.insert({
-      _id: uuidv4(),
-      key: 'jwtSecret',
-      value: secret,
-      createdAt: new Date().toISOString()
-    })
-    console.log('[Database] JWT 密钥已生成并持久化')
-    jwtSetting = { value: secret }
-  }
-
-  if (process.env.JWT_SECRET) {
-    console.log('[Database] 使用环境变量中的 JWT 密钥')
   }
 }
 
@@ -70,19 +52,7 @@ async function initAppSettings() {
     await db.settings.insert({
       _id: uuidv4(),
       key: 'appSettings',
-      value: {
-        appName: 'OneImg',
-        appLogo: '',
-        backgroundUrl: '',
-        backgroundBlur: 0,
-        siteUrl: '',
-        appDescription: 'OneImg 是一个面向个人使用的媒体床，统一管理图片与视频。',
-        announcement: {
-          enabled: false,
-          content: '',
-          displayType: 'modal'
-        }
-      },
+      value: JSON.parse(JSON.stringify(DEFAULT_APP_SETTINGS)),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     })
@@ -116,7 +86,6 @@ export async function initDatabase() {
   try {
     await createIndexes()
     await initDefaultUser()
-    await initJwtSecret()
     await initDefaultApiKey()
     await initAppSettings()
     // 统一上传策略：由历史三配置键幂等合并生成（旧键保留用于回滚）

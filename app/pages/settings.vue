@@ -120,8 +120,8 @@
           </div>
 
           <div class="pt-4">
-            <button type="submit" class="btn-primary" :disabled="savingApp">
-              {{ savingApp ? '保存中...' : '保存设置' }}
+            <button type="submit" class="btn-primary" :disabled="savingApp || !settingsStore.appSettingsLoaded">
+              {{ savingApp ? '保存中...' : (settingsStore.appSettingsLoaded ? '保存设置' : '配置未加载（已禁用保存）') }}
             </button>
           </div>
         </form>
@@ -141,17 +141,7 @@
               <label class="text-sm font-medium text-gray-700 dark:text-gray-300">启用公告</label>
               <p class="text-xs text-gray-500 dark:text-gray-400">开启后每次刷新页面都会显示公告</p>
             </div>
-            <button
-              type="button"
-              @click="announcementSettings.enabled = !announcementSettings.enabled"
-              class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-              :class="announcementSettings.enabled ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'"
-            >
-              <span
-                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-                :class="announcementSettings.enabled ? 'translate-x-6' : 'translate-x-1'"
-              />
-            </button>
+            <ToggleSwitch v-model="announcementSettings.enabled" />
           </div>
 
           <!-- 展示形式 -->
@@ -326,6 +316,11 @@ async function saveAppSettings() {
   savingApp.value = true
   logoError.value = false
   backgroundError.value = false
+
+  if (!settingsStore.appSettingsLoaded) {
+    toastStore.error('应用设置未成功加载，已阻止保存（避免覆盖线上配置）')
+    return
+  }
 
   try {
     const result = await settingsStore.saveAppSettings({

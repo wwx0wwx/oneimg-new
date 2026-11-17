@@ -1,15 +1,16 @@
 import db from '../../utils/db.js'
-import { generateToken } from '../../utils/jwt.js'
+import { getClientIP } from '../../utils/mediaService.js'
 import bcrypt from 'bcryptjs'
 import { sendLoginNotification } from '../../utils/notification/index.js'
 import { checkRateLimit } from '../../utils/rateLimit.js'
+import { getUploadPolicy } from '../../utils/uploadPolicy.js'
 
 export default defineEventHandler(async (event) => {
   try {
-    const clientIP = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
-    // 登录使用独立的低限速（每 IP 每分钟 5 次），不与上传限速配置耦合，
-    // 防止管理端把 privateApiConfig.rateLimit 调大后登录接口跟着失去爆破防护
-    const rateLimitResult = await checkRateLimit('login', `login:${clientIP}`, { limit: 5 })
+    const clientIP = getClientIP(event)
+    // 登录使用独立低限速，默认 5 次/分钟，可在 uploadPolicy.limits.loginPerMin 调整
+    const policy = await getUploadPolicy()
+    const rateLimitResult = await checkRateLimit('login', `login:${clientIP}`, { limit: policy.limits.loginPerMin })
     if (!rateLimitResult.allowed) {
       throw createError({
         statusCode: 429,
@@ -35,9 +36,10 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // 查找用户
+    // 查找用户（不存在时也执行一次 dummy compare，消除时序侧信道）
     const user = await db.users.findOne({ username })
     if (!user) {
+      await bcrypt.compare(password, '$2a$10$C6UzMDM.H6dfI/f/IKcEeO7ZUn5oGSp7lBrUvB1OqEuXJLwPBjJm6')
       throw createError({
         statusCode: 401,
         message: '用户名或密码错误'

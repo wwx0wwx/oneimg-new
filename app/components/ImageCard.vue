@@ -98,8 +98,8 @@
       class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
     >
       <!-- 图片信息 -->
-      <div class="text-white text-xs truncate">
-        {{ image.filename }}
+      <div class="text-white text-xs truncate" :title="image.filename">
+        {{ image.originalName || image.filename }}
       </div>
       <div class="text-white/70 text-xs mt-1">
         {{ image.width }}×{{ image.height }} · {{ formatFileSize(image.size) }}
@@ -150,6 +150,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { formatFileSize } from '~/utils/format'
 import { useMediaStore } from '~/stores/media'
 
 const props = defineProps({
@@ -191,14 +192,6 @@ const aspectRatioPadding = computed(() => {
   // 默认 4:3 比例
   return '75%'
 })
-
-// 格式化文件大小
-function formatFileSize(bytes) {
-  if (!bytes) return '0 B'
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-}
 
 function onImageLoad() {
   imageLoaded.value = true

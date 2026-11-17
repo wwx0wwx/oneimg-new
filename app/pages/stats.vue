@@ -157,7 +157,7 @@
                       <span>{{ item.mediaType === 'video' ? '视频' : '图片' }}</span>
                       <span>{{ formatFileSize(item.size) }}</span>
                       <span v-if="item.width && item.height">{{ item.width }}x{{ item.height }}</span>
-                      <span>{{ formatDate(item.uploadedAt) }}</span>
+                      <span>{{ formatDateTime(item.uploadedAt) }}</span>
                       <span v-if="item.moderationScore" class="text-red-500">
                         风险分数: {{ (item.moderationScore * 100).toFixed(1) }}%
                       </span>
@@ -251,6 +251,7 @@
             :src="resolvedPreviewSrc"
             class="max-w-full max-h-96 mx-auto object-contain"
             controls
+            @error="handlePreviewError"
           ></video>
           <img
             v-else-if="previewingMedia"
@@ -266,7 +267,7 @@
           <p><strong>媒体类型：</strong>{{ previewingMedia.mediaType === 'video' ? '视频' : '图片' }}</p>
           <p><strong>尺寸：</strong>{{ previewingMedia.width || 0 }}x{{ previewingMedia.height || 0 }}</p>
           <p><strong>大小：</strong>{{ formatFileSize(previewingMedia.size) }}</p>
-          <p><strong>上传时间：</strong>{{ formatDate(previewingMedia.uploadedAt) }}</p>
+          <p><strong>上传时间：</strong>{{ formatDateTime(previewingMedia.uploadedAt) }}</p>
           <p><strong>上传方式：</strong>{{ previewingMedia.uploadedByType }}</p>
           <p v-if="previewingMedia.moderationScore">
             <strong>风险分数：</strong>
@@ -326,6 +327,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import { useSettingsStore } from '~/stores/settings'
 import { useToastStore } from '~/stores/toast'
+import { formatFileSize, formatDateTime } from '~/utils/format'
 
 definePageMeta({
   middleware: 'auth',
@@ -370,25 +372,6 @@ const stats = reactive({
   nsfwRate: 0
 })
 
-function formatFileSize(bytes) {
-  if (!bytes) return '0 B'
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
-}
-
-function formatDate(dateStr) {
-  if (!dateStr) return '-'
-  const date = new Date(dateStr)
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
 
 async function hardDeleteImages() {
   try {

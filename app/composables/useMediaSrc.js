@@ -3,18 +3,33 @@ import { useAuthStore } from '~/stores/auth'
 
 // 私有媒体（visibility=private 及需要鉴权的预览接口）无法通过 <img src> 加载——
 // 标签请求携带不了 Authorization 头，会得到 403"加载失败"。
-// 这里统一处理：公开媒体直接用直链；需要鉴权的媒体用 fetch + Blob URL，
-// 并按 URL 做模块级缓存，避免画廊反复请求。
-const blobUrlCache = new Map()
+// 这里统一处理：公开媒体直接用直链；需要鉴权的媒体用 fetch + Blob URL。
+const blobUrlCache = new Map() // key: url, value: { objectUrl, lastUsed }
+const BLOB_CACHE_MAX = 50      // LRU 上限：超出时回收最久未用（B3 内存泄漏）
 
-function resolveAuthUrl(url) {
-  // 管理端违规预览接口同样需要鉴权
-  return url
+function touchCacheEntry(url) {
+  const entry = blobUrlCache.get(url)
+  if (entry) {
+    entry.lastUsed = Date.now()
+    blobUrlCache.delete(url)
+    blobUrlCache.set(url, entry)
+  }
+}
+
+function evictIfNeeded() {
+  while (blobUrlCache.size > BLOB_CACHE_MAX) {
+    const oldestKey = blobUrlCache.keys().next().value
+    const entry = blobUrlCache.get(oldestKey)
+    blobUrlCache.delete(oldestKey)
+    if (entry) URL.revokeObjectURL(entry.objectUrl)
+  }
 }
 
 async function fetchAuthorizedBlobUrl(url, token) {
-  if (blobUrlCache.has(url)) {
-    return blobUrlCache.get(url)
+  const cached = blobUrlCache.get(url)
+  if (cached) {
+    touchCacheEntry(url)
+    return cached.objectUrl
   }
 
   const response = await fetch(url, {
@@ -27,15 +42,14 @@ async function fetchAuthorizedBlobUrl(url, token) {
 
   const blob = await response.blob()
   const objectUrl = URL.createObjectURL(blob)
-  blobUrlCache.set(url, objectUrl)
+  blobUrlCache.set(url, { objectUrl, lastUsed: Date.now() })
+  evictIfNeeded()
   return objectUrl
 }
 
 // 判断媒体对象在 <img>/<video> 中是否需要带凭证加载
 export function mediaRequiresAuth(media = {}) {
   if (!media) return false
-  // 违规/删除态走 /api/images/preview 需要管理员凭证；
-  // 私有直链 /i/... 需要 Bearer；仅公开可见性可直连
   return media.visibility === 'private' || !!(media.previewUrl)
 }
 
@@ -43,8 +57,11 @@ export function useMediaSrc(getMedia) {
   const src = ref('')
   const error = ref(false)
   const loading = ref(true)
+  // 竞态防护：快速切换媒体时，旧的异步结果不得覆盖新的（B4）
+  let requestToken = 0
 
   async function refresh(media) {
+    const token = ++requestToken
     const authStore = useAuthStore()
     const url = media?.previewUrl || media?.url || ''
 
@@ -60,7 +77,7 @@ export function useMediaSrc(getMedia) {
       return
     }
 
-    // 未登录却遇到需鉴权的媒体（例如首页上的私有项）：直接按原样尝试
+    // 未登录却遇到需鉴权的媒体：直接按原样尝试
     if (!authStore.isAuthenticated) {
       src.value = url
       loading.value = false
@@ -70,12 +87,17 @@ export function useMediaSrc(getMedia) {
     loading.value = true
     error.value = false
     try {
-      src.value = await fetchAuthorizedBlobUrl(resolveAuthUrl(url), authStore.token)
+      const objectUrl = await fetchAuthorizedBlobUrl(url, authStore.token)
+      if (token !== requestToken) return // 已切换到其他媒体，丢弃过期结果
+      src.value = objectUrl
     } catch (e) {
+      if (token !== requestToken) return
       error.value = true
       src.value = ''
     } finally {
-      loading.value = false
+      if (token === requestToken) {
+        loading.value = false
+      }
     }
   }
 

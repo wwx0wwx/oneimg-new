@@ -1,10 +1,11 @@
 import crypto from 'crypto'
 
 /**
- * CSP nonce：为 HTML 响应中的内联 <script>/<style> 注入 nonce，
- * 并下发带 nonce 的 Content-Security-Policy（覆盖 routeRules 的静态 CSP，
- * 使 script-src/style-src 摆脱 'unsafe-inline'）。
- * 仅作用于 HTML 文档响应（媒体/API 的 CSP 由各路由自行设置）。
+ * CSP nonce（本插件是全站 CSP 的唯一出口，routeRules 中不再配置静态 CSP）。
+ * 仅对 <script> 做 nonce——SPA（ssr:false）下 Vue 运行时会动态注入
+ * 无 nonce 的 <style>（scoped 样式/v-bind CSS/motion 内联样式），
+ * style-src 若不带 'unsafe-inline' 会产生海量违规并拦截动态样式
+ * （样式注入无脚本执行风险，保留 unsafe-inline 是 SPA 的标准权衡）。
  */
 export default defineNitroPlugin((nitro) => {
   nitro.hooks.hook('render:response', (response) => {
@@ -16,15 +17,13 @@ export default defineNitroPlugin((nitro) => {
     if (typeof body !== 'string' || !body.includes('<script')) return
 
     const nonce = crypto.randomBytes(16).toString('base64url')
-    response.body = body
-      .replace(/<script(?![^>]*\bnonce=)([^>]*)>/g, `<script nonce="${nonce}"$1>`)
-      .replace(/<style(?![^>]*\bnonce=)([^>]*)>/g, `<style nonce="${nonce}"$1>`)
+    response.body = body.replace(/<script(?![^>]*\bnonce=)([^>]*)>/g, `<script nonce="${nonce}"$1>`)
 
     headers['Content-Security-Policy'] = [
       "default-src 'self'",
       "img-src 'self' data: blob: https: http:",
       "media-src 'self' blob:",
-      "style-src 'self' 'nonce-" + nonce + "'",
+      "style-src 'self' 'unsafe-inline'",
       "script-src 'self' 'nonce-" + nonce + "'",
       "connect-src 'self'",
       "font-src 'self' data:",

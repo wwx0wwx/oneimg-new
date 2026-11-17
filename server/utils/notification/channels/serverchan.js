@@ -6,6 +6,10 @@ import { isValidImageUrl } from '../template.js'
 const SERVERCHAN_API = 'https://sctapi.ftqq.com'
 
 async function postServerChan(sendKey, params) {
+  // sendKey 进入 URL 路径，严格白名单校验（防注入）
+  if (!/^[A-Za-z0-9_]+$/.test(String(sendKey))) {
+    throw new Error('无效的 SendKey 格式')
+  }
   const response = await fetch(`${SERVERCHAN_API}/${sendKey}.send`, {
     method: 'POST',
     headers: {
@@ -52,9 +56,10 @@ export async function send(config, payload) {
       }
     }
 
+    const escapeMd = (v = '') => String(v).replace(/([_*`\[\]])/g, '\\$1')
     await postServerChan(serverchan.sendKey, new URLSearchParams({
-      text: payload.title,
-      desp: content
+      text: escapeMd(payload.title),
+      desp: escapeMd(content)
     }))
 
     console.log('[Notification] Server酱通知发送成功:', payload.title)

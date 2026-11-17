@@ -1,26 +1,14 @@
-// 路由守卫中间件 - 保护需要登录/管理员权限的页面
-// 页面通过 definePageMeta({ middleware: 'auth', adminOnly: true }) 声明仅管理员可访问
-export default defineNuxtRouteMiddleware((to, from) => {
-  // 需要登录的页面
-  const protectedRoutes = ['/api', '/settings', '/stats', '/notification']
-
-  // 检查是否是受保护的路由
-  const isProtectedRoute = protectedRoutes.some(route => to.path.startsWith(route))
-
-  if (!isProtectedRoute) {
-    return
-  }
-
-  // 仅在客户端检查
+// 路由守卫：依赖页面自声明的 definePageMeta({ middleware: 'auth', adminOnly? })，
+// 不再维护重复的路径清单（新增受保护页面只改页面自身的 meta）
+export default defineNuxtRouteMiddleware((to) => {
   if (import.meta.client) {
     const token = localStorage.getItem('token')
 
     if (!token) {
-      // 未登录，重定向到登录页
       return navigateTo('/login')
     }
 
-    // 管理员专属页面：普通用户重定向首页（前端引导；服务端接口本身有 403 兜底）
+    // 管理员专属页面：普通用户重定向首页（前端引导；服务端接口有 403 兜底）
     if (to.meta.adminOnly) {
       try {
         const user = JSON.parse(localStorage.getItem('user') || '{}')

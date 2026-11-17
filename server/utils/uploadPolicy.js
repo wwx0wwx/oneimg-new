@@ -78,6 +78,25 @@ function normalizeAllowedExtensions(value) {
   return valid.length > 0 ? valid : [...ALL_MEDIA_FORMATS]
 }
 
+// contentSafety 清洗：providers 白名单 + 客户端回传 apiKey 一律剥离
+// （与 config/public.put 同标准——PUT /api/upload-policy 的整体透传
+//  不能成为绕过密钥剥离的后门）
+function sanitizeContentSafety(cs = {}) {
+  const KNOWN_PROVIDERS = ['nsfwdet', 'elysiatools', 'nsfw_detector']
+  const providers = {}
+  for (const key of KNOWN_PROVIDERS) {
+    if (cs.providers && cs.providers[key] && typeof cs.providers[key] === 'object') {
+      providers[key] = { ...cs.providers[key], apiKey: '' }
+    }
+  }
+  return {
+    enabled: cs.enabled === true,
+    provider: typeof cs.provider === 'string' ? cs.provider : 'elysiatools',
+    autoBlacklistIp: cs.autoBlacklistIp === true,
+    providers
+  }
+}
+
 function normalizePolicy(value = {}) {
   const d = DEFAULT_UPLOAD_POLICY
   return {
@@ -101,7 +120,7 @@ function normalizePolicy(value = {}) {
       loginPerMin: Number(value.limits?.loginPerMin) > 0 ? Math.round(Number(value.limits.loginPerMin)) : d.limits.loginPerMin
     },
     allowConcurrent: value.allowConcurrent === true,
-    contentSafety: value.contentSafety || getDefaultContentSafetyConfig()
+    contentSafety: value.contentSafety ? sanitizeContentSafety(value.contentSafety) : getDefaultContentSafetyConfig()
   }
 }
 

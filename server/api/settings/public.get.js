@@ -1,4 +1,5 @@
 import db from '../../utils/db.js'
+import { DEFAULT_APP_SETTINGS } from '../../utils/appSettingsDefaults.js'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -6,21 +7,17 @@ export default defineEventHandler(async (event) => {
     const settings = await db.settings.findOne({ key: 'appSettings' })
 
     // 默认公告配置
-    const defaultAnnouncement = {
-      enabled: false,
-      content: '',
-      displayType: 'modal'  // 'modal' | 'banner'
-    }
+
 
     if (!settings) {
       return {
         success: true,
         data: {
-          appName: 'OneImg',
-          appLogo: '',
-          backgroundUrl: '',
-          backgroundBlur: 0,
-          announcement: defaultAnnouncement
+          appName: DEFAULT_APP_SETTINGS.appName,
+          appLogo: DEFAULT_APP_SETTINGS.appLogo,
+          backgroundUrl: DEFAULT_APP_SETTINGS.backgroundUrl,
+          backgroundBlur: DEFAULT_APP_SETTINGS.backgroundBlur,
+          announcement: DEFAULT_APP_SETTINGS.announcement
         }
       }
     }
@@ -33,7 +30,7 @@ export default defineEventHandler(async (event) => {
         backgroundUrl: settings.value.backgroundUrl || '',
         backgroundBlur: settings.value.backgroundBlur || 0,
         announcement: {
-          ...defaultAnnouncement,
+          ...DEFAULT_APP_SETTINGS.announcement,
           ...(settings.value.announcement || {})
         }
       }

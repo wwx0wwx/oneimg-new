@@ -21,13 +21,15 @@ export default defineEventHandler(async (event) => {
     const current = await getNotificationConfig()
     const keepOr = (incoming, existing) => (isMaskedSecret(incoming) ? existing : incoming)
 
+    // 未传字段保留库中现值（与密钥 keepOr 语义一致，防止部分提交静默关停）
+    const keepBool = (incoming, existing) => incoming === undefined ? existing : incoming === true
     const config = {
-      enabled: !!enabled,
-      method: method || NOTIFICATION_METHODS.WEBHOOK,
+      enabled: keepBool(enabled, current.enabled),
+      method: method || current.method || NOTIFICATION_METHODS.WEBHOOK,
       types: {
-        [NOTIFICATION_TYPES.LOGIN]: !!types?.login,
-        [NOTIFICATION_TYPES.UPLOAD]: !!types?.upload,
-        [NOTIFICATION_TYPES.NSFW_DETECTED]: !!types?.nsfw
+        [NOTIFICATION_TYPES.LOGIN]: keepBool(types?.login, current.types.login),
+        [NOTIFICATION_TYPES.UPLOAD]: keepBool(types?.upload, current.types.upload),
+        [NOTIFICATION_TYPES.NSFW_DETECTED]: keepBool(types?.nsfw, current.types.nsfw)
       },
       webhook: {
         url: webhook?.url || '',

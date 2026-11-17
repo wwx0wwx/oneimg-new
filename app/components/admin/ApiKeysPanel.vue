@@ -29,7 +29,7 @@
           </div>
           <div class="text-xs text-gray-400 mt-1 space-y-1">
             <div>归属用户：{{ key.ownerUsername || '未绑定' }}</div>
-            <div>创建于 {{ formatDate(key.createdAt) }}</div>
+            <div>创建于 {{ formatDateTime(key.createdAt) }}</div>
           </div>
         </div>
         <div class="flex items-center gap-2 ml-4">
@@ -89,6 +89,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useSettingsStore } from '~/stores/settings'
 import { useToastStore } from '~/stores/toast'
+import { formatDateTime } from '~/utils/format'
 import { copyToClipboard } from '~/utils/clipboard'
 
 // API Key 管理面板：列表 / 创建（绑定归属用户）/ 刷新 / 删除
@@ -107,13 +108,6 @@ const users = ref([])
 
 const apiKeys = computed(() => settingsStore.apiKeys)
 const bindableUsers = computed(() => users.value.filter(user => user.status === 'active'))
-
-function formatDate(dateStr) {
-  if (!dateStr) return ''
-  return new Date(dateStr).toLocaleDateString('zh-CN', {
-    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
-  })
-}
 
 function maskKey(key) {
   if (!key || key.length < 8) return key

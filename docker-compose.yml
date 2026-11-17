@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     ports:
       # 容器内监听端口（PORT）与映射保持一致：8888
-      - "8888:8888"
+      - "127.0.0.1:8888:8888"
     volumes:
       - ./db:/app/db
       - ./uploads:/app/uploads

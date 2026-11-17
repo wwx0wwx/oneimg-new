@@ -40,12 +40,18 @@ export default defineEventHandler(async (event) => {
     }
 
     if (ownerUserId !== undefined) {
-      const ownerUser = await db.users.findOne({ _id: String(ownerUserId), status: { $ne: 'disabled' } })
-      if (!ownerUser) {
-        throw createError({ statusCode: 400, message: '归属用户不存在或已被禁用' })
+      // 允许显式传 null 解绑归属（此前 String(null)='null' 导致无法解绑且报错误导）
+      if (ownerUserId === null || ownerUserId === '') {
+        updateData.ownerUserId = null
+        updateData.ownerUsername = null
+      } else {
+        const ownerUser = await db.users.findOne({ _id: String(ownerUserId), status: { $ne: 'disabled' } })
+        if (!ownerUser) {
+          throw createError({ statusCode: 400, message: '归属用户不存在或已被禁用' })
+        }
+        updateData.ownerUserId = ownerUser._id
+        updateData.ownerUsername = ownerUser.username
       }
-      updateData.ownerUserId = ownerUser._id
-      updateData.ownerUsername = ownerUser.username
     }
 
     if (regenerate) {

@@ -1,4 +1,5 @@
 import db from '../../utils/db.js'
+import { DEFAULT_APP_SETTINGS } from '../../utils/appSettingsDefaults.js'
 import { requireAdmin } from '../../utils/auth.js'
 import sanitizeHtml from 'sanitize-html'
 
@@ -35,19 +36,7 @@ export default defineEventHandler(async (event) => {
     await requireAdmin(event)
 
     const currentSettings = await db.settings.findOne({ key: 'appSettings' })
-    const currentValue = currentSettings?.value || {
-      appName: 'OneImg',
-      appLogo: '',
-      backgroundUrl: '',
-      backgroundBlur: 0,
-      siteUrl: '',
-      appDescription: 'OneImg 是一个面向个人使用的媒体床，统一管理图片与视频。',
-      announcement: {
-        enabled: false,
-        content: '',
-        displayType: 'modal'
-      }
-    }
+    const currentValue = currentSettings?.value || JSON.parse(JSON.stringify(DEFAULT_APP_SETTINGS))
 
     const body = await readBody(event)
     const updatedValue = { ...currentValue }

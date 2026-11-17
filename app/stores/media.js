@@ -6,6 +6,9 @@ export const useMediaStore = defineStore('media', {
     mediaItems: [],
     loading: false,
     uploading: false,
+    error: null,
+    // reset 请求被在途 loading 吞掉时记录，待在途完成后补偿执行
+    pendingReset: false,
     currentUserRole: 'anonymous',
     pagination: {
       page: 1,
@@ -19,7 +22,11 @@ export const useMediaStore = defineStore('media', {
 
   actions: {
     async fetchMedia(reset = false) {
-      if (this.loading) return
+      // 在途请求期间的 reset 不丢弃，记为 pending 补偿执行（B5）
+      if (this.loading) {
+        if (reset) this.pendingReset = true
+        return
+      }
 
       if (reset) {
         this.pagination.page = 1
@@ -30,6 +37,7 @@ export const useMediaStore = defineStore('media', {
 
       if (!this.hasMore) return
       this.loading = true
+      this.error = null
 
       try {
         const authStore = useAuthStore()
@@ -54,16 +62,35 @@ export const useMediaStore = defineStore('media', {
           this.hasMore = this.pagination.page < this.pagination.totalPages
         }
       } catch (error) {
+        // 错误态显式化：空态与失败态在 UI 上区分（B6）
+        this.error = error?.data?.message || '加载失败，请检查网络后重试'
         console.error('获取媒体列表失败:', error)
       } finally {
         this.loading = false
+        // 补偿此前被吞掉的 reset
+        if (this.pendingReset) {
+          this.pendingReset = false
+          this.fetchMedia(true)
+        }
+      }
+    },
+
+    async retry() {
+      if (this.error) {
+        this.error = null
+        await this.fetchMedia(true)
       }
     },
 
     async loadMore() {
       if (!this.hasMore || this.loading) return
-      this.pagination.page++
+      // page 递增先暂存：请求失败回滚（否则该页数据永久缺失）
+      const prevPage = this.pagination.page
+      this.pagination.page = prevPage + 1
       await this.fetchMedia()
+      if (this.error) {
+        this.pagination.page = prevPage
+      }
     },
 
     prependMedia(item) {

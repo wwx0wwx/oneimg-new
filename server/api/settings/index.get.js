@@ -1,4 +1,5 @@
 import db from '../../utils/db.js'
+import { DEFAULT_APP_SETTINGS } from '../../utils/appSettingsDefaults.js'
 import { requireAdmin } from '../../utils/auth.js'
 
 export default defineEventHandler(async (event) => {
@@ -7,12 +8,6 @@ export default defineEventHandler(async (event) => {
 
     const settings = await db.settings.findOne({ key: 'appSettings' })
     const deletedCount = await db.images.count({ isDeleted: true })
-
-    const defaultAnnouncement = {
-      enabled: false,
-      content: '',
-      displayType: 'modal'
-    }
 
     if (!settings) {
       return {
@@ -25,7 +20,7 @@ export default defineEventHandler(async (event) => {
           siteUrl: '',
           appDescription: 'OneImg 是一个面向个人使用的媒体床，统一管理图片与视频。',
           deletedImagesCount: deletedCount,
-          announcement: defaultAnnouncement
+          announcement: DEFAULT_APP_SETTINGS.announcement
         }
       }
     }
@@ -41,7 +36,7 @@ export default defineEventHandler(async (event) => {
         appDescription: settings.value.appDescription || 'OneImg 是一个面向个人使用的媒体床，统一管理图片与视频。',
         deletedImagesCount: deletedCount,
         announcement: {
-          ...defaultAnnouncement,
+          ...DEFAULT_APP_SETTINGS.announcement,
           ...(settings.value.announcement || {})
         }
       }

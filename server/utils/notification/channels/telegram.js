@@ -73,7 +73,7 @@ export async function send(config, payload) {
     console.log('[Notification] Telegram 通知预发送:', payload.title)
 
     const bot = createBot(telegram.token)
-    const chatId = Number(telegram.chatId)
+    const chatId = telegram.chatId
 
     const imageUrl = payload.data?.url || payload.data?.imageUrl
     const hasValidImageUrl = isValidImageUrl(imageUrl)
@@ -104,7 +104,7 @@ export async function send(config, payload) {
         console.warn('[Notification] Telegram sendPhoto 失败，回退到普通消息:', photoError.message)
         let fallbackMessage = buildTelegramMessage(payload, true)
         if (hasValidImageUrl) {
-          fallbackMessage += `\n\n🔗 [查看图片](${imageUrl})`
+          fallbackMessage += `\n\n🔗 [查看图片](${escapeMarkdown(imageUrl)})`
         }
         await bot.sendMessage(chatId, fallbackMessage, {
           parse_mode: 'Markdown',
@@ -113,7 +113,7 @@ export async function send(config, payload) {
       }
     } else if (hasValidImageUrl) {
       let fallbackMessage = buildTelegramMessage(payload, true)
-      fallbackMessage += `\n\n🔗 [查看图片](${imageUrl})`
+      fallbackMessage += `\n\n🔗 [查看图片](${escapeMarkdown(imageUrl)})`
       await bot.sendMessage(chatId, fallbackMessage, {
         parse_mode: 'Markdown',
         disable_web_page_preview: false
@@ -139,7 +139,7 @@ export async function test(telegramConfig) {
 
     const message = `*测试通知*\n这是一条测试通知，用于验证 Telegram 配置是否正确。\n\n_发送时间: ${new Date().toISOString()}_`
     const bot = createBot(telegramConfig.token)
-    await bot.sendMessage(Number(telegramConfig.chatId), message, { parse_mode: 'Markdown' })
+    await bot.sendMessage(telegramConfig.chatId, message, { parse_mode: 'Markdown' })
     return { success: true, message: '测试通知发送成功' }
   } catch (error) {
     console.error('[Notification] Telegram 测试失败:', error)

@@ -15,8 +15,14 @@ export const useAuthStore = defineStore('auth', {
         const user = localStorage.getItem('user')
         if (token && user) {
           this.token = token
-          this.user = JSON.parse(user)
-          this.isAuthenticated = true
+          // 损坏的 JSON 不能导致启动白屏（与路由守卫的容错一致）
+          try {
+            this.user = JSON.parse(user)
+            this.isAuthenticated = true
+          } catch {
+            localStorage.removeItem('user')
+            localStorage.removeItem('token')
+          }
         }
       }
     },

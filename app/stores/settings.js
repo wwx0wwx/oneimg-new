@@ -83,8 +83,11 @@ export const useSettingsStore = defineStore('settings', {
 
         if (response.success) {
           this.appSettings = response.data
+          this.appSettingsLoaded = true
         }
       } catch (error) {
+        // 失败标记：settings 页据此禁用保存（防止默认值覆盖线上配置）
+        this.appSettingsLoaded = false
         console.error('获取应用设置失败:', error)
       }
     },

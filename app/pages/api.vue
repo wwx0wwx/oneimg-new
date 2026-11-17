@@ -29,6 +29,10 @@
       <AdminUsersPanel />
     </div>
 
+    <div v-show="activeTab === 'blacklist'" class="space-y-6">
+      <AdminBlacklistPanel />
+    </div>
+
     <div v-show="activeTab === 'docs'" class="space-y-4">
       <AdminApiDocsPanel />
     </div>
@@ -48,6 +52,7 @@ const tabs = [
   { id: 'public', label: '匿名与安全' },
   { id: 'private', label: '登录上传' },
   { id: 'users', label: '用户管理' },
+  { id: 'blacklist', label: '黑名单' },
   { id: 'docs', label: 'API文档' }
 ]
 const activeTab = ref('public')

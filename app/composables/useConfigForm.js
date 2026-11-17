@@ -15,6 +15,8 @@ import { useToastStore } from '~/stores/toast'
 export function useConfigForm({ defaults, fetcher, saver, successMessage, afterLoad }) {
   const toastStore = useToastStore()
   const saving = ref(false)
+  // 加载失败标记：阻止以默认值覆盖线上配置（H3）
+  const loadError = ref(false)
   const form = reactive(structuredClone(toRaw(defaults)))
 
   async function load() {
@@ -23,13 +25,20 @@ export function useConfigForm({ defaults, fetcher, saver, successMessage, afterL
       if (data) {
         Object.assign(form, data)
       }
+      loadError.value = false
       afterLoad?.(form)
     } catch (error) {
+      loadError.value = true
       console.error('[ConfigForm] 加载配置失败:', error)
+      toastStore.error('配置加载失败，为防覆盖已禁用保存，请刷新重试')
     }
   }
 
   async function save() {
+    if (loadError.value) {
+      toastStore.error('配置未成功加载，已阻止保存（避免覆盖线上配置）')
+      return { success: false }
+    }
     saving.value = true
     try {
       const result = await saver(JSON.parse(JSON.stringify(form)))
@@ -44,5 +53,5 @@ export function useConfigForm({ defaults, fetcher, saver, successMessage, afterL
     }
   }
 
-  return { form, saving, load, save }
+  return { form, saving, loadError, load, save }
 }

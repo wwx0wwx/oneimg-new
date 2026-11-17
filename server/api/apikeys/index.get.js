@@ -4,7 +4,8 @@ import { requireAdmin } from '../../utils/auth.js'
 function serializeApiKey(key = {}) {
   return {
     id: key._id,
-    key: key.key,
+    // 列表一律掩码展示（完整值仅创建/重生成响应中一次性返回）
+    key: key.key ? key.key.slice(0, 7) + '****' + key.key.slice(-4) : key.key,
     name: key.name,
     isDefault: key.isDefault || false,
     enabled: key.enabled !== false,

@@ -12,17 +12,7 @@
               开启后，系统将在特定事件发生时发送通知
             </p>
           </div>
-          <button
-            type="button"
-            @click="config.enabled = !config.enabled"
-            class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-            :class="config.enabled ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'"
-          >
-            <span
-              class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-              :class="config.enabled ? 'translate-x-6' : 'translate-x-1'"
-            />
-          </button>
+          <ToggleSwitch v-model="config.enabled" />
         </div>
       </div>
 
@@ -43,17 +33,7 @@
               <label class="text-sm font-medium text-gray-700 dark:text-gray-300">登录通知</label>
               <p class="text-xs text-gray-500 dark:text-gray-400">当管理员登录时发送通知</p>
             </div>
-            <button
-              type="button"
-              @click="config.types.login = !config.types.login"
-              class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-              :class="config.types.login ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'"
-            >
-              <span
-                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-                :class="config.types.login ? 'translate-x-6' : 'translate-x-1'"
-              />
-            </button>
+            <ToggleSwitch v-model="config.types.login" />
           </div>
 
           <!-- 媒体上传通知 -->
@@ -62,17 +42,7 @@
               <label class="text-sm font-medium text-gray-700 dark:text-gray-300">媒体上传通知</label>
               <p class="text-xs text-gray-500 dark:text-gray-400">当有新的图片或视频上传时发送通知</p>
             </div>
-            <button
-              type="button"
-              @click="config.types.upload = !config.types.upload"
-              class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-              :class="config.types.upload ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'"
-            >
-              <span
-                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-                :class="config.types.upload ? 'translate-x-6' : 'translate-x-1'"
-              />
-            </button>
+            <ToggleSwitch v-model="config.types.upload" />
           </div>
 
           <!-- 鉴黄检测结果通知 -->
@@ -81,17 +51,7 @@
               <label class="text-sm font-medium text-gray-700 dark:text-gray-300">鉴黄检测结果通知</label>
               <p class="text-xs text-gray-500 dark:text-gray-400">当图片内容审核完成时发送通知（特别是检测到违规内容时）</p>
             </div>
-            <button
-              type="button"
-              @click="config.types.nsfw = !config.types.nsfw"
-              class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-              :class="config.types.nsfw ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'"
-            >
-              <span
-                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-                :class="config.types.nsfw ? 'translate-x-6' : 'translate-x-1'"
-              />
-            </button>
+            <ToggleSwitch v-model="config.types.nsfw" />
           </div>
         </div>
       </div>
@@ -564,136 +524,45 @@ async function saveConfig() {
 }
 
 // 测试 Webhook
-async function testWebhook() {
-  if (!config.webhook.url) {
-    toastStore.error('请先填写 Webhook URL')
-    return
-  }
-
-  // 验证 headers JSON
-  try {
-    config.webhook.headers = JSON.parse(headersJson.value || '{}')
-  } catch (e) {
-    toastStore.error('请求头 JSON 格式错误')
-    return
-  }
-
-  testing.value = true
-  try {
-    const response = await $fetch('/api/notification/test', {
-      method: 'POST',
-      body: { webhook: config.webhook },
-      headers: authStore.authHeader
-    })
-
-    if (response.success) {
-      toastStore.success('测试通知发送成功')
-    } else {
-      toastStore.error(response.message || '测试失败')
-    }
-  } catch (error) {
-    console.error('测试 Webhook 失败:', error)
-    toastStore.error(error.data?.message || '测试失败')
-  } finally {
-    testing.value = false
-  }
-}
 
 // 测试 Telegram
-async function testTelegram() {
-  if (!config.telegram.token || !config.telegram.chatId) {
-    toastStore.error('请先填写 Telegram Token 和 Chat ID')
-    return
-  }
-
-  testingTelegram.value = true
-  try {
-    const response = await $fetch('/api/notification/test', {
-      method: 'POST',
-      body: {
-        method: 'telegram',
-        telegram: config.telegram
-      },
-      headers: authStore.authHeader
-    })
-
-    if (response.success) {
-      toastStore.success('测试通知发送成功')
-    } else {
-      toastStore.error(response.message || '测试失败')
-    }
-  } catch (error) {
-    console.error('测试 Telegram 失败:', error)
-    toastStore.error(error.data?.message || '测试失败')
-  } finally {
-    testingTelegram.value = false
-  }
-}
 
 // 测试 Email
-async function testEmail() {
-  if (!config.email.service || !config.email.user || !config.email.pass) {
-    toastStore.error('请先填写完整的邮件配置')
-    return
-  }
-
-  testingEmail.value = true
-  try {
-    const response = await $fetch('/api/notification/test', {
-      method: 'POST',
-      body: {
-        method: 'email',
-        email: config.email
-      },
-      headers: authStore.authHeader
-    })
-
-    if (response.success) {
-      toastStore.success('测试通知发送成功')
-    } else {
-      toastStore.error(response.message || '测试失败')
-    }
-  } catch (error) {
-    console.error('测试 Email 失败:', error)
-    toastStore.error(error.data?.message || '测试失败')
-  } finally {
-    testingEmail.value = false
-  }
-}
 
 // 测试 Server酱
-async function testServerChan() {
-  if (!config.serverchan.sendKey) {
-    toastStore.error('请先填写 Server酱 SendKey')
-    return
-  }
-
-  testingServerChan.value = true
-  try {
-    const response = await $fetch('/api/notification/test', {
-      method: 'POST',
-      body: {
-        method: 'serverchan',
-        serverchan: config.serverchan
-      },
-      headers: authStore.authHeader
-    })
-
-    if (response.success) {
-      toastStore.success('测试通知发送成功')
-    } else {
-      toastStore.error(response.message || '测试失败')
-    }
-  } catch (error) {
-    console.error('测试 Server酱 失败:', error)
-    toastStore.error(error.data?.message || '测试失败')
-  } finally {
-    testingServerChan.value = false
-  }
-}
 
 // 初始化
 onMounted(() => {
   fetchConfig()
 })
+
+// 统一测试入口：四个渠道的测试请求只有 method/payload 不同（历史上 130 行 × 4 份拷贝）
+async function runChannelTest(method) {
+  testing.value = method
+  testResult.value = null
+  try {
+    const body = {
+      method,
+      webhook: { url: notifForm.webhook.url, method: notifForm.webhook.method, contentType: notifForm.webhook.contentType, headers: notifForm.webhook.headers, bodyTemplate: notifForm.webhook.bodyTemplate },
+      telegram: { token: notifForm.telegram.token, chatId: notifForm.telegram.chatId },
+      email: { service: notifForm.email.service, user: notifForm.email.user, pass: notifForm.email.pass, to: notifForm.email.to },
+      serverchan: { sendKey: notifForm.serverchan.sendKey }
+    }
+    const response = await $fetch('/api/notification/test', {
+      method: 'POST',
+      headers: authStore.authHeader,
+      body
+    })
+    testResult.value = response
+    if (response.success) {
+      toastStore.success('测试通知发送成功')
+    } else {
+      toastStore.error(response.message || '测试失败')
+    }
+  } catch (error) {
+    toastStore.error(error?.data?.message || '测试失败')
+  } finally {
+    testing.value = ''
+  }
+}
 </script>

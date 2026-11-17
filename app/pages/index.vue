@@ -30,10 +30,18 @@
         <Loading size="lg" />
       </div>
 
+      <div v-else-if="mediaStore.error" class="text-center py-16">
+        <Icon name="heroicons:wifi-slash" class="w-16 h-16 mx-auto text-red-300 mb-4" />
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">加载失败</h3>
+        <p class="text-gray-500 dark:text-gray-400 mb-4">{{ mediaStore.error }}</p>
+        <button class="btn-secondary" @click="mediaStore.retry()">重试</button>
+      </div>
+
       <div v-else-if="mediaStore.mediaItems.length === 0" class="text-center py-16">
         <Icon name="heroicons:photo" class="w-24 h-24 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">暂无媒体</h3>
-        <p class="text-gray-500 dark:text-gray-400">上传你的第一个媒体项吧</p>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">欢迎来到 {{ settingsStore.appSettings.appName || 'OneImg' }}</h3>
+        <p class="text-gray-500 dark:text-gray-400 mb-1">这是一个个人媒体床：上传图片与视频，生成直链分享。</p>
+        <p class="text-gray-400 dark:text-gray-500">上传你的第一个媒体项吧</p>
       </div>
 
       <div v-else class="masonry-container">
@@ -200,6 +208,7 @@ import { useSettingsStore } from '~/stores/settings'
 import { useToastStore } from '~/stores/toast'
 import { copyToClipboard } from '../utils/clipboard'
 import { formatMediaLink } from '../../shared/mediaLinks.js'
+import { formatFileSize } from '~/utils/format'
 
 const authStore = useAuthStore()
 const mediaStore = useMediaStore()
@@ -292,13 +301,6 @@ function handleScroll() {
 
 function scrollToTop() {
   window.scrollTo({ top: 0, behavior: 'smooth' })
-}
-
-function formatFileSize(bytes) {
-  if (!bytes) return '0 B'
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
 function openViewer(media) {

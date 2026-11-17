@@ -17,10 +17,18 @@ import {
   deleteMediaFile,
   buildMediaLink
 } from './media.js'
-import { getMediaConfig, getMaxFileSizeForRole } from './mediaConfig.js'
 import { USER_ROLES, canManageMedia, canViewMedia, isAdminUser } from './auth.js'
 import { createModerationTask } from './moderationQueue.js'
 import { isBlacklisted } from './ipBlacklist.js'
+
+/**
+ * 客户端 IP 获取：仅当 TRUST_PROXY=1 时才解析 X-Forwarded-For。
+ * 无条件信任 XFF 的风险：源站端口暴露时可伪造 XFF 绕过限速/恶意拉黑他人。
+ */
+export function getClientIP(event) {
+  const trustProxy = process.env.TRUST_PROXY === '1'
+  return getRequestIP(event, { xForwardedFor: trustProxy }) || 'unknown'
+}
 
 export async function resolveSiteUrl(event) {
   const appSettingsDoc = await db.settings.findOne({ key: 'appSettings' })
@@ -72,6 +80,18 @@ export function buildMediaResponse(record, siteUrl = '') {
     moderationStatus: media.moderationStatus,
     moderationScore: media.moderationResult?.score || 0
   }
+}
+
+// 角色对应大小上限（兼容 uploadPolicy.sizeLimits 与历史扁平形状）
+export function getMaxFileSizeForRole(config, role = USER_ROLES.ANONYMOUS) {
+  if (config?.sizeLimits) {
+    if (role === USER_ROLES.ADMIN) return config.sizeLimits.admin
+    if (role === USER_ROLES.USER) return config.sizeLimits.user
+    return config.sizeLimits.anonymous
+  }
+  if (role === USER_ROLES.ADMIN) return config.adminMaxFileSize
+  if (role === USER_ROLES.USER) return config.userMaxFileSize
+  return config.anonymousMaxFileSize
 }
 
 // 宽容的 MIME 归一化（部分客户端/远端服务会返回非规范写法）
@@ -235,7 +255,7 @@ export async function createMediaRecord({
     uploadedByType,
     apiKeyId,
     sourceUrl,
-    ip: getRequestIP(event, { xForwardedFor: true }) || 'unknown',
+    ip: getClientIP(event),
     uploadedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     moderationStatus: enableModeration && mediaType === 'image' ? 'pending' : 'skipped',
@@ -264,11 +284,19 @@ export async function listVisibleMedia({ user = null, page = 1, limit = 20 }) {
   const base = { isDeleted: false, isNsfw: { $ne: true } }
   let query
   if (!user) {
-    query = { ...base, visibility: { $ne: 'private' } }
+    // 匿名：审核 pending 的媒体不出现在列表（否则卡片缩略图 403 满屏破图）
+    query = { ...base, visibility: { $ne: 'private' }, moderationStatus: { $ne: 'pending' } }
   } else if (isAdminUser(user)) {
     query = base
   } else {
-    query = { ...base, $or: [{ visibility: { $ne: 'private' } }, { ownerId: user._id }] }
+    // 普通用户：自己的 pending 可见；他人的 pending 不可见
+    query = {
+      ...base,
+      $or: [
+        { visibility: { $ne: 'private' }, moderationStatus: { $ne: 'pending' } },
+        { ownerId: user._id }
+      ]
+    }
   }
 
   page = Math.max(1, parseInt(page) || 1)
@@ -359,12 +387,13 @@ export async function batchSoftDeleteMedia({ ids, user }) {
   return { deletedCount, errors }
 }
 
-export async function hardDeleteDeletedMedia() {
-  const deletedItems = await db.images.find({ isDeleted: true })
+/** 按查询条件物理删除媒体（文件 + 记录），供回收站清空与违规清空复用 */
+export async function purgeMedia(query) {
+  const items = await db.images.find(query)
   let deletedCount = 0
   const errors = []
 
-  for (const item of deletedItems) {
+  for (const item of items) {
     try {
       deleteMediaFile(item.filename)
       await db.images.remove({ _id: item._id })
@@ -377,8 +406,12 @@ export async function hardDeleteDeletedMedia() {
   return { deletedCount, errors }
 }
 
+export async function hardDeleteDeletedMedia() {
+  return purgeMedia({ isDeleted: true })
+}
+
 export async function assertAnonymousUploadAllowed(event) {
-  const ip = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
+  const ip = getClientIP(event)
   if (await isBlacklisted(ip)) {
     throw createError({ statusCode: 403, message: '您的 IP 已被禁止上传' })
   }

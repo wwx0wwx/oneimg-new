@@ -9,17 +9,7 @@
             <label class="text-sm font-medium text-gray-700 dark:text-gray-300">允许匿名公开上传</label>
             <p class="text-xs text-gray-500 dark:text-gray-400">关闭后，未登录用户会被前后端同时拒绝上传。</p>
           </div>
-          <button
-            type="button"
-            @click="policy.form.allowAnonymousUpload = !policy.form.allowAnonymousUpload"
-            class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-            :class="policy.form.allowAnonymousUpload ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'"
-          >
-            <span
-              class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-              :class="policy.form.allowAnonymousUpload ? 'translate-x-6' : 'translate-x-1'"
-            />
-          </button>
+          <ToggleSwitch v-model="policy.form.allowAnonymousUpload" />
         </div>
 
         <div>
@@ -85,17 +75,7 @@
             <label class="text-sm font-medium text-gray-700 dark:text-gray-300">开启压缩</label>
             <p class="text-xs text-gray-500 dark:text-gray-400">压缩上传的图片（默认不转换格式）</p>
           </div>
-          <button
-            type="button"
-            @click="behavior.form.enableCompression = !behavior.form.enableCompression"
-            class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-            :class="behavior.form.enableCompression ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'"
-          >
-            <span
-              class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-              :class="behavior.form.enableCompression ? 'translate-x-6' : 'translate-x-1'"
-            />
-          </button>
+          <ToggleSwitch v-model="behavior.form.enableCompression" />
         </div>
 
         <div v-if="behavior.form.enableCompression" class="ml-4 space-y-3">
@@ -118,34 +98,14 @@
                 <label class="text-sm font-medium text-gray-700 dark:text-gray-300">转为 WebP</label>
                 <p class="text-xs text-gray-500 dark:text-gray-400">将图片转换为 WebP 格式（不可与转为 PNG 同时开启）</p>
               </div>
-              <button
-                type="button"
-                @click="toggleConvertFormat('webp')"
-                class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-                :class="behavior.form.convertToWebp ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'"
-              >
-                <span
-                  class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-                  :class="behavior.form.convertToWebp ? 'translate-x-6' : 'translate-x-1'"
-                />
-              </button>
+              <ToggleSwitch :model-value="behavior.form.convertToWebp" @update:model-value="toggleConvertFormat('webp')" />
             </div>
             <div class="flex items-center justify-between">
               <div>
                 <label class="text-sm font-medium text-gray-700 dark:text-gray-300">转为 PNG</label>
                 <p class="text-xs text-gray-500 dark:text-gray-400">将图片转换为 PNG 格式（不可与转为 WebP 同时开启）</p>
               </div>
-              <button
-                type="button"
-                @click="toggleConvertFormat('png')"
-                class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-                :class="behavior.form.convertToPng ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'"
-              >
-                <span
-                  class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
-                  :class="behavior.form.convertToPng ? 'translate-x-6' : 'translate-x-1'"
-                />
-              </button>
+              <ToggleSwitch :model-value="behavior.form.convertToPng" @update:model-value="toggleConvertFormat('png')" />
             </div>
           </div>
         </div>
@@ -161,14 +121,7 @@
           <label class="text-sm font-medium text-gray-700 dark:text-gray-300">允许并发上传</label>
           <p class="text-xs text-gray-500 dark:text-gray-400">关闭后同一 IP 只能串行上传</p>
         </div>
-        <button
-          type="button"
-          @click="behavior.form.allowConcurrent = !behavior.form.allowConcurrent"
-          class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-          :class="behavior.form.allowConcurrent ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'"
-        >
-          <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform" :class="behavior.form.allowConcurrent ? 'translate-x-6' : 'translate-x-1'" />
-        </button>
+        <ToggleSwitch v-model="behavior.form.allowConcurrent" />
       </div>
 
       <div class="pt-4">

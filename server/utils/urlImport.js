@@ -1,7 +1,7 @@
 import https from 'https'
 import http from 'http'
 import { getRandomHeaders } from './fetchHeaders.js'
-import { getMediaConfig } from './mediaConfig.js'
+import { getUploadPolicy } from './uploadPolicy.js'
 import { createMediaRecord, validateMediaByConfig } from './mediaService.js'
 import { normalizeExtension, getMediaTypeByMime } from './media.js'
 import { resolveOutboundAddr } from './netGuard.js'
@@ -95,7 +95,7 @@ function downloadWithPinnedIp(url, ip, family, headers, maxBytes) {
   })
 }
 
-export async function importMediaFromUrl({ event, url, owner, ownerRole, uploadedByType, visibility, uploadConfig, returnBase64 = false, apiKeyId = null }) {
+export async function importMediaFromUrl({ event, url, owner, ownerRole, uploadedByType, visibility, uploadConfig, enableModeration = false, returnBase64 = false, apiKeyId = null }) {
   let mediaUrl
   try {
     mediaUrl = new URL(url)
@@ -128,7 +128,8 @@ export async function importMediaFromUrl({ event, url, owner, ownerRole, uploade
     throw createError({ statusCode: 400, message: 'URL 指向的不是支持的图片或视频资源' })
   }
 
-  const mediaConfig = await getMediaConfig()
+  // 统一读 uploadPolicy（旧 mediaConfig 键已废弃，双源会让 URL 导入绕过管理端策略）
+  const mediaConfig = await getUploadPolicy()
   const ext = getExtensionFromUrl(mediaUrl) || getExtensionFromContentType(contentType) || (mediaType === 'video' ? 'mp4' : 'jpg')
 
   const file = {
@@ -152,6 +153,8 @@ export async function importMediaFromUrl({ event, url, owner, ownerRole, uploade
     uploadedByType,
     visibility,
     uploadConfig,
+    // 审核标志必须透传（历史上签名缺参导致 URL 导入成为免审通道）
+    enableModeration,
     sourceUrl: url,
     apiKeyId
   })

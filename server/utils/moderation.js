@@ -29,23 +29,6 @@ async function postMultipart(url, { fieldName, buffer, filename, contentType, he
   }
 }
 
-/** 固定 IP 的 JSON POST。返回解析后的 JSON。 */
-async function postJson(url, body, { headers = {}, timeoutMs = 30000 } = {}) {
-  const response = await pinnedFetch(url, {
-    method: 'POST',
-    body: JSON.stringify(body),
-    headers: { 'Content-Type': 'application/json', ...headers },
-    timeoutMs
-  })
-  if (response.status < 200 || response.status >= 300) {
-    throw new Error(`HTTP ${response.status}`)
-  }
-  try {
-    return JSON.parse(response.body.toString('utf8'))
-  } catch {
-    throw new Error('响应不是有效 JSON')
-  }
-}
 
 /**
  * 内容审核服务 - 支持多厂商API适配
@@ -56,7 +39,9 @@ export const MODERATION_PROVIDERS = {
   nsfwdet: {
     name: 'NSFW Detector',
     apiUrl: 'https://nsfwdet.com/api/v1/detect-nsfw',
-    apiKey: process.env.NSFWDET_API_KEY || '',
+    // 注意：env 密钥不写入默认配置对象——否则会被持久化进 settings.db
+    // 并经管理端 GET 原样回显。运行时由 detect() 的 env 回退提供
+    apiKey: '',
     threshold: 0.5
   },
   elysiatools: {
@@ -112,7 +97,8 @@ const providerAdapters = {
     async detect(imageBuffer, filename, config) {
       try {
         const apiUrl = config.apiUrl || this.defaultApiUrl
-        const apiKey = config.apiKey || this.defaultApiKey
+        // 密钥优先级：库中配置 > 环境变量（默认配置恒空串，env 不落库）
+        const apiKey = config.apiKey || process.env.NSFWDET_API_KEY || this.defaultApiKey
 
         // 构建 FormData（使用 Node.js 原生支持的方式）
         const FormData = (await import('form-data')).default
@@ -343,7 +329,8 @@ const providerAdapters = {
     async detect(imageBuffer, filename, config) {
       try {
         const apiUrl = config.apiUrl || this.defaultApiUrl
-        const apiKey = config.apiKey || this.defaultApiKey
+        // 密钥优先级：库中配置 > 环境变量（默认配置恒空串，env 不落库）
+        const apiKey = config.apiKey || process.env.NSFWDET_API_KEY || this.defaultApiKey
 
         if (!apiUrl) {
           return { success: false, error: 'nsfw_detector 服务 API 地址未配置，请在设置中配置' }

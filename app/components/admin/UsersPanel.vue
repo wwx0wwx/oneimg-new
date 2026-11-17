@@ -36,7 +36,7 @@
               {{ user.status === 'active' ? '启用中' : '已禁用' }}
             </span>
           </div>
-          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">创建于 {{ formatDate(user.createdAt) }}</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">创建于 {{ formatDateTime(user.createdAt) }}</p>
         </div>
         <button
           class="btn-secondary text-sm"
@@ -55,6 +55,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import { useSettingsStore } from '~/stores/settings'
 import { useToastStore } from '~/stores/toast'
+import { formatDateTime } from '~/utils/format'
 
 // 用户管理面板：创建普通用户、启停账户
 const authStore = useAuthStore()
@@ -65,13 +66,6 @@ const users = ref([])
 const creatingUser = ref(false)
 const updatingUserId = ref('')
 const userForm = reactive({ username: '', password: '' })
-
-function formatDate(dateStr) {
-  if (!dateStr) return ''
-  return new Date(dateStr).toLocaleDateString('zh-CN', {
-    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
-  })
-}
 
 async function loadUsers() {
   users.value = await settingsStore.fetchUsers()

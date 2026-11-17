@@ -30,11 +30,7 @@ export async function copyToClipboard(text: string): Promise<void> {
     // 使用 input 元素在 iOS 上更可靠
     const element = isIOS ? document.createElement('input') : document.createElement('textarea')
 
-    if (element instanceof HTMLTextAreaElement) {
-      element.value = text
-    } else {
-      element.value = text
-    }
+    element.value = text
 
     // 设置样式使其不可见但仍可选中
     element.style.position = 'fixed'

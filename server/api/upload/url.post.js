@@ -1,5 +1,5 @@
 import db from '../../utils/db.js'
-import { requireAuthUser, getMediaOwnerFromUser, isAdminUser, USER_ROLES } from '../../utils/auth.js'
+import { getClientIP } from '../../utils/mediaService.js'
 import { importMediaFromUrl, MAX_URL_IMPORT_BATCH } from '../../utils/urlImport.js'
 import { getUploadPolicy, processingToFlat } from '../../utils/uploadPolicy.js'
 import { checkRateLimit } from '../../utils/rateLimit.js'
@@ -36,8 +36,9 @@ export default defineEventHandler(async (event) => {
     }
 
     // URL 导入会触发服务端出站下载 + sharp 处理，独立限速防滥用
-    const clientIP = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
-    const rl = await checkRateLimit('urlimport', `urlimport:${clientIP}`, { limit: 10 })
+    const clientIP = getClientIP(event)
+    const policy = await getUploadPolicy()
+    const rl = await checkRateLimit('urlimport', `urlimport:${clientIP}`, { limit: policy.limits.urlImportPerMin })
     if (!rl.allowed) {
       throw createError({ statusCode: 429, message: `导入请求过于频繁，请 ${rl.retryAfter ?? 60} 秒后重试` })
     }
@@ -64,7 +65,6 @@ export default defineEventHandler(async (event) => {
     }
 
     // 统一读取 uploadPolicy（新单一事实源）
-    const policy = await getUploadPolicy()
     const uploadConfig = processingToFlat(policy.processing)
     const mediaConfig = policy
     const moderationEnabled = policy.contentSafety?.enabled === true

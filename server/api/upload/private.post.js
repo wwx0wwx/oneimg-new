@@ -1,8 +1,9 @@
 import db from '../../utils/db.js'
+import { getClientIP } from '../../utils/mediaService.js'
 import { parseFormData } from '../../utils/media.js'
 import { sendUploadNotification } from '../../utils/notification/index.js'
 import { getUploadPolicy, processingToFlat } from '../../utils/uploadPolicy.js'
-import { validateMediaByConfig, createMediaRecord } from '../../utils/mediaService.js'
+import { getMaxFileSizeForRole, validateMediaByConfig, createMediaRecord } from '../../utils/mediaService.js'
 import { USER_ROLES, requireAuthUser, resolveUploadRole } from '../../utils/auth.js'
 import { checkPrivateRateLimit } from '../../utils/rateLimit.js'
 import { isBlacklisted } from '../../utils/ipBlacklist.js'
@@ -106,7 +107,7 @@ async function getOptionalAuthUser(event) {
 }
 
 export default defineEventHandler(async (event) => {
-  const clientIP = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
+  const clientIP = getClientIP(event)
 
   try {
     const { ownerUser, role, uploadedByType, apiKeyId } = await resolveUploadOwner(event)

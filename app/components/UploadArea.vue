@@ -214,6 +214,7 @@ import { useAuthStore } from '~/stores/auth'
 import { useMediaStore } from '~/stores/media'
 import { useSettingsStore } from '~/stores/settings'
 import { useToastStore } from '~/stores/toast'
+import { formatFileSize } from '~/utils/format'
 
 // 延迟函数
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms))
@@ -280,13 +281,6 @@ const acceptTypes = computed(() => {
   }
   return allowedFormats.value.map(f => mimeMap[f] || `.${f}`).join(',')
 })
-
-// 格式化文件大小
-function formatFileSize(bytes) {
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-}
 
 // 获取配置
 async function fetchConfig() {
@@ -424,8 +418,14 @@ async function uploadSingleFile(file) {
 
 // 上传多个文件（串行上传，避免浏览器并发限制导致失败）
 async function uploadFiles(files) {
-  // 检查公共 API 是否启用（未登录时）
-  if (!authStore.isAuthenticated && !publicApiEnabled.value) {
+  // 统一并发守卫：文件选择/拖拽/粘贴三个入口都可能触发（历史上仅选择按钮有守卫）
+  if (isUploading.value) {
+    toastStore.error('已有上传进行中，请等待完成')
+    return
+  }
+
+  // 检查公共 API 是否启用（未登录时）；配置未加载完时不误报（B14）
+  if (!authStore.isAuthenticated && publicApiEnabled.value === false) {
     toastStore.error('访客上传已禁用，请登录后上传')
     return
   }
@@ -563,9 +563,14 @@ async function handleUrlUpload() {
     data: null
   }))
 
+  const abortController = new AbortController()
+  // 路由离开时中断 SSE 流，避免 reader 更新已卸载组件
+  onUnmounted(() => abortController.abort())
+
   try {
     // 使用fetch发送POST请求，然后读取SSE响应
     const response = await fetch('/api/upload/urls', {
+      signal: abortController.signal,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -590,8 +595,8 @@ async function handleUrlUpload() {
 
       buffer += decoder.decode(value, { stream: true })
 
-      // 解析SSE事件
-      const lines = buffer.split('\n')
+      // 解析SSE事件（兼容 CRLF 与 LF 两种行结束符）
+      const lines = buffer.split(/\r?\n/)
       buffer = lines.pop() || '' // 保留不完整的行
 
       let eventType = ''

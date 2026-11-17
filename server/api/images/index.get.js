@@ -4,13 +4,24 @@ import { listVisibleMedia, buildMediaResponse, resolveSiteUrl } from '../../util
 export default defineEventHandler(async (event) => {
   try {
     const query = getQuery(event)
-    const page = parseInt(query.page) || 1
-    const limit = parseInt(query.limit) || 20
+    // 分页参数夹取：limit 负值/超大值统一收敛到 [1,100]（回显与实际一致）
+    const page = Math.max(1, parseInt(query.page) || 1)
+    const limit = Math.min(100, Math.max(1, parseInt(query.limit) || 20))
     const user = await getAuthUser(event)
     const siteUrl = await resolveSiteUrl(event)
 
     const result = await listVisibleMedia({ user, page, limit })
-    const items = result.items.map(item => buildMediaResponse(item, siteUrl))
+    const isAdmin = !!(user && isAdminUser(user))
+    const items = result.items.map(item => {
+      const resp = buildMediaResponse(item, siteUrl)
+      // 账号枚举防护：非管理员且非本人视角下不回传真实用户名/用户ID
+      if (!isAdmin && (!user || item.ownerId !== user._id)) {
+        resp.ownerName = '用户'
+        resp.uploadedBy = '用户'
+        resp.ownerId = null
+      }
+      return resp
+    })
 
     return {
       success: true,

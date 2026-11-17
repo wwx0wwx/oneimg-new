@@ -14,6 +14,9 @@ export default defineNuxtConfig({
 
   compatibilityDate: '2025-12-12',
 
+  // SPA 首屏 loading（ssr:false 下 JS 加载期间展示，消除慢网白屏）
+  spaLoadingTemplate: true,
+
   modules: [
     '@pinia/nuxt',
     '@nuxt/icon'
@@ -45,6 +48,7 @@ export default defineNuxtConfig({
 
   app: {
     head: {
+      htmlAttrs: { lang: 'zh-CN' },
       title: 'OneImg',
       meta: [
         { charset: 'utf-8' },
@@ -56,6 +60,8 @@ export default defineNuxtConfig({
   },
 
   nitro: {
+    // 移除 x-powered-by 响应头
+    poweredBy: false,
     experimental: {
       bodySizeLimit: 100 * 1024 * 1024
     },
@@ -67,14 +73,9 @@ export default defineNuxtConfig({
           'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key'
         }
       },
-      // 全站增量式 CSP：object-src/base-uri/form-action/frame-ancestors 提供
-      // 实际防护；script-src 暂需 'unsafe-inline'（Nuxt SPA 内联引导脚本），
-      // 完整 nonce 方案待后续版本。SVG 直链由 /i/ 处理器下发更严格的专属 CSP。
-      '/**': {
-        headers: {
-          'Content-Security-Policy': "default-src 'self'; img-src 'self' data: blob: https: http:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
-        }
-      }
+      // 全站 CSP 由 server/plugins/csp-nonce.js 统一下发（唯一出口）：
+      // script-src 带 nonce；style-src 保留 unsafe-inline（SPA 动态样式注入所需）。
+      // SVG 直链由 /i/ 处理器下发更严格的专属 CSP。
     },
     // 预渲染完成后强制退出进程
     // 这是为了解决某些模块（如数据库连接、定时器）可能保持进程活跃的问题

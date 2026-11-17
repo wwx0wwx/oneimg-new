@@ -12,22 +12,10 @@ export async function getJwtSecret() {
   let setting = await db.settings.findOne({ key: 'jwtSecret' })
 
   if (!setting?.value) {
+    // NeDB 不支持 $setOnInsert——改用 insert（并发下 findOne 兜底保证幂等）
     const secret = crypto.randomBytes(64).toString('hex')
     const now = new Date().toISOString()
-    await db.settings.update(
-      { key: 'jwtSecret' },
-      {
-        $set: {
-          key: 'jwtSecret',
-          value: secret,
-          updatedAt: now
-        },
-        $setOnInsert: {
-          createdAt: now
-        }
-      },
-      { upsert: true }
-    )
+    await db.settings.insert({ key: 'jwtSecret', value: secret, createdAt: now, updatedAt: now })
     return secret
   }
 
@@ -71,11 +59,14 @@ export async function verifyToken(token) {
     if ((decoded.tv || 1) !== (user.tokenVersion || 1)) {
       return null
     }
-    // 附带调用方常用的用户字段，使 getAuthUser 无需二次查库
+    // 附带调用方常用的用户字段，使 getAuthUser 无需二次查库。
+    // tokenVersion 取库文档真值——撤销侧（改密/改名/重置）以它为基准 +1；
+    // 历史上撤销侧误用 decoded（只有 tv 声明）导致第 2 次起改密不再撤销
     return {
       ...decoded,
       role: normalizeUserRole(user.role || decoded.role || USER_ROLES.USER),
       username: user.username,
+      tokenVersion: user.tokenVersion || 1,
       _id: user._id,
       status: user.status,
       createdAt: user.createdAt,

@@ -128,7 +128,7 @@
             <NuxtLink
               v-else
               to="/login"
-              class="nav-link nav-link-icon sm:nav-link-text"
+              class="nav-link nav-link-icon sm:nav-link-text !text-primary-600 dark:!text-primary-400"
               :class="{ 'nav-link-active': route.path === '/login' }"
               title="登录"
             >
@@ -167,7 +167,7 @@ const toastStore = useToastStore()
 
 // 应用配置
 const appName = computed(() => settingsStore.appSettings.appName || 'OneImg')
-const appLogo = computed(() => settingsStore.appSettings.appLogo || '/favicon.png')
+const appLogo = computed(() => settingsStore.appSettings.appLogo || '')
 const backgroundUrl = computed(() => settingsStore.appSettings.backgroundUrl || '')
 const backgroundBlur = computed(() => settingsStore.appSettings.backgroundBlur || 0)
 

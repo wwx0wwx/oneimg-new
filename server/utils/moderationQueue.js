@@ -18,7 +18,6 @@ import { sendNsfwNotification } from './notification/index.js'
 // 队列处理器状态
 let isProcessing = false
 let processorInterval = null
-let currentTaskRetryCount = 0
 const MAX_RETRY_COUNT = 3  // 单个任务最大重试次数
 const RETRY_INTERVAL = 60 * 1000  // 重试间隔 1 分钟
 const PROCESS_INTERVAL = 5 * 1000  // 正常处理间隔 5 秒
@@ -57,12 +56,11 @@ export async function createModerationTask(imageId, imageUuid, filename) {
  * 获取下一个待处理的任务
  */
 async function getNextPendingTask() {
-  const tasks = await db.moderationTasks.find({
-    status: { $in: ['pending', 'failed'] }
-  })
-
-  // 按创建时间排序，优先处理较早的任务
-  tasks.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+  // 排序/限量下推存储层（此前全表拉取内存排序，createdAt 已有索引）
+  const tasks = await db.moderationTasks.findPage(
+    { status: { $in: ['pending', 'failed'] } },
+    { sort: { createdAt: 1 }, limit: 50 }
+  )
 
   // 对于 failed 状态的任务，检查重试次数
   for (const task of tasks) {
@@ -282,7 +280,6 @@ async function processQueue() {
     if (!result.success && result.retry) {
       // 需要重试，等待重试间隔后再处理
       console.log(`[ModerationQueue] 服务不可用，${RETRY_INTERVAL / 1000}秒后重试...`)
-      currentTaskRetryCount++
 
       // 暂停处理，等待重试间隔
       if (processorInterval) {
@@ -319,6 +316,16 @@ export function startProcessor() {
   }
 
   console.log('[ModerationQueue] 启动审核任务处理器')
+
+  // 崩溃恢复：上次进程中断遗留的 processing 任务重置为 pending，
+  // 否则对应媒体将永久停在 pending（对外不可见）且任务永不清理
+  db.moderationTasks.update(
+    { status: 'processing' },
+    { $set: { status: 'pending', updatedAt: new Date().toISOString() } },
+    { multi: true }
+  ).then(n => {
+    if (n > 0) console.log(`[ModerationQueue] 已恢复 ${n} 个中断的 processing 任务`)
+  }).catch(() => {})
 
   // 立即执行一次
   processQueue()
@@ -367,8 +374,10 @@ export async function getQueueStatus() {
  * 重试失败的任务
  */
 export async function retryFailedTasks() {
+  // 仅重置 failed（可重试）；error 为不可重试终态（如超最大次数），
+  // 历史上被一并复活导致无限重试
   const result = await db.moderationTasks.update(
-    { status: { $in: ['failed', 'error'] } },
+    { status: 'failed' },
     {
       $set: {
         status: 'pending',
