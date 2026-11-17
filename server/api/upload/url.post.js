@@ -2,6 +2,7 @@ import db from '../../utils/db.js'
 import { requireAuthUser, getMediaOwnerFromUser, isAdminUser, USER_ROLES } from '../../utils/auth.js'
 import { importMediaFromUrl, MAX_URL_IMPORT_BATCH } from '../../utils/urlImport.js'
 import { getMediaConfig } from '../../utils/mediaConfig.js'
+import { getUploadPolicy, processingToFlat } from '../../utils/uploadPolicy.js'
 import { checkRateLimit } from '../../utils/rateLimit.js'
 import { isBlacklisted } from '../../utils/ipBlacklist.js'
 
@@ -63,12 +64,11 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, message: `单次最多导入 ${MAX_URL_IMPORT_BATCH} 个 URL` })
     }
 
-    const configDoc = await db.settings.findOne({ key: 'privateApiConfig' })
-    const uploadConfig = configDoc?.value || {}
-    const mediaConfig = await getMediaConfig()
-    // 内容审核配置统一读取 publicApiConfig.contentSafety（与上传/队列同源）
-    const moderationConfigDoc = await db.settings.findOne({ key: 'publicApiConfig' })
-    const moderationEnabled = moderationConfigDoc?.value?.contentSafety?.enabled === true
+    // 统一读取 uploadPolicy（新单一事实源）
+    const policy = await getUploadPolicy()
+    const uploadConfig = processingToFlat(policy.processing)
+    const mediaConfig = policy
+    const moderationEnabled = policy.contentSafety?.enabled === true
 
     const results = []
     const errors = []

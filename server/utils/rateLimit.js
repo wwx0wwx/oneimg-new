@@ -16,9 +16,17 @@ export async function checkRateLimit(type, identifier, opts = {}) {
   let rateLimit = opts.limit
 
   if (!Number.isFinite(rateLimit) || rateLimit <= 0) {
-    const configKey = type === 'public' ? 'publicApiConfig' : 'privateApiConfig'
-    const config = await db.settings.findOne({ key: configKey })
-    rateLimit = config?.value?.rateLimit
+    // 兜底读 uploadPolicy（新键）；未迁移部署回落旧配置键
+    const policyDoc = await db.settings.findOne({ key: 'uploadPolicy' })
+    if (policyDoc?.value?.limits) {
+      rateLimit = type === 'public'
+        ? policyDoc.value.limits.anonymousPerMin
+        : policyDoc.value.limits.authenticatedPerMin
+    } else {
+      const configKey = type === 'public' ? 'publicApiConfig' : 'privateApiConfig'
+      const config = await db.settings.findOne({ key: configKey })
+      rateLimit = config?.value?.rateLimit
+    }
   }
 
   if (!rateLimit || rateLimit <= 0) {

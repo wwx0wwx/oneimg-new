@@ -1,11 +1,15 @@
 // e2e 启动器：拉起隔离实例 → 提取初始密码 → 顺序执行 node --test → 清理
 // 用法: node test/regression/run-e2e.mjs [--keep]（--keep 保留实例不杀）
 import { spawn, execSync } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, readdirSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const KEEP = process.argv.includes('--keep')
+// 清理旧 e2e token 缓存（新实例新密码，旧 token 无效）
+for (const f of readdirSync('/tmp').filter(f => f.startsWith('oneimg-e2e-tokens-'))) {
+  try { unlinkSync('/tmp/' + f) } catch {}
+}
 const DATA_DIR = mkdtempSync(join(tmpdir(), 'oneimg-e2e-'))
 const PORT = process.env.E2E_PORT || '8889'
 

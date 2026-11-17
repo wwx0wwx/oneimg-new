@@ -104,9 +104,10 @@ async function processTask(task) {
   )
 
   try {
-    // 获取内容安全配置
-    const configDoc = await db.settings.findOne({ key: 'publicApiConfig' })
-    const contentSafetyConfig = configDoc?.value?.contentSafety
+    // 获取内容安全配置（uploadPolicy 单一事实源）
+    const { getUploadPolicy } = await import('./uploadPolicy.js')
+    const policy = await getUploadPolicy()
+    const contentSafetyConfig = policy.contentSafety
 
     if (!contentSafetyConfig?.enabled) {
       // 内容安全未启用，跳过

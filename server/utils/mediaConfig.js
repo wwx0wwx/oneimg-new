@@ -77,6 +77,12 @@ export async function saveMediaConfig(value = {}) {
 }
 
 export function getMaxFileSizeForRole(config, role = USER_ROLES.ANONYMOUS) {
+  // 兼容两种形状：uploadPolicy.sizeLimits（新）与扁平 mediaConfig 字段（旧）
+  if (config?.sizeLimits) {
+    if (role === USER_ROLES.ADMIN) return config.sizeLimits.admin
+    if (role === USER_ROLES.USER) return config.sizeLimits.user
+    return config.sizeLimits.anonymous
+  }
   if (role === USER_ROLES.ADMIN) return config.adminMaxFileSize
   if (role === USER_ROLES.USER) return config.userMaxFileSize
   return config.anonymousMaxFileSize

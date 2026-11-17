@@ -9,6 +9,7 @@ import {
 import { sendUploadNotification } from '../../utils/notification.js'
 import { assertAnonymousUploadAllowed, createMediaRecord, validateMediaByConfig } from '../../utils/mediaService.js'
 import { USER_ROLES } from '../../utils/auth.js'
+import { getUploadPolicy, processingToFlat } from '../../utils/uploadPolicy.js'
 
 export default defineEventHandler(async (event) => {
   const clientIP = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
@@ -16,16 +17,19 @@ export default defineEventHandler(async (event) => {
   let concurrencyAcquired = false
 
   try {
-    const mediaConfig = await assertAnonymousUploadAllowed(event)
-    const publicConfigDoc = await db.settings.findOne({ key: 'publicApiConfig' })
-    const uploadConfig = publicConfigDoc?.value || {}
+    const policy = await assertAnonymousUploadAllowed(event)
+    const mediaConfig = policy
+    const uploadConfig = {
+      ...processingToFlat(policy.processing),
+      contentSafety: policy.contentSafety
+    }
 
-    const rateLimitResult = await checkPublicRateLimit(clientIP, uploadConfig.rateLimit || 10)
+    const rateLimitResult = await checkPublicRateLimit(clientIP, policy.limits.anonymousPerMin)
     if (!rateLimitResult.allowed) {
       throw createError({ statusCode: 429, message: `请求过于频繁，请 ${rateLimitResult.retryAfter ?? 60} 秒后重试` })
     }
 
-    if (!uploadConfig.allowConcurrent) {
+    if (!policy.allowConcurrent) {
       const concurrencyResult = await checkPublicConcurrency(clientIP)
       if (!concurrencyResult.allowed) {
         throw createError({ statusCode: 429, message: '请等待上一项媒体上传完成' })

@@ -1,66 +1,43 @@
-import db from '../../utils/db.js'
 import { requireAdmin } from '../../utils/auth.js'
-
-const DEFAULT_PRIVATE_CONFIG = {
-  maxFileSize: 50 * 1024 * 1024,
-  enableCompression: false,
-  compressionQuality: 80,
-  convertToWebp: false,
-  convertToPng: false,
-  rateLimit: 60,
-  showOnHomepage: false
-}
+import { getUploadPolicy, saveUploadPolicy, syncLegacyKeys } from '../../utils/uploadPolicy.js'
 
 export default defineEventHandler(async (event) => {
   try {
     await requireAdmin(event)
-
     const body = await readBody(event)
-    const currentConfig = await db.settings.findOne({ key: 'privateApiConfig' })
-    const previousValue = {
-      ...DEFAULT_PRIVATE_CONFIG,
-      ...(currentConfig?.value || {})
-    }
+    const policy = await getUploadPolicy()
 
-    const finalConvertToWebp = body.convertToWebp === true
-    const finalConvertToPng = finalConvertToWebp ? false : (body.convertToPng === true)
-
-    const configValue = {
-      ...previousValue,
-      maxFileSize: Number(body.maxFileSize) > 0 ? Number(body.maxFileSize) : previousValue.maxFileSize,
-      enableCompression: body.enableCompression === true,
-      compressionQuality: Number(body.compressionQuality) > 0 ? Number(body.compressionQuality) : previousValue.compressionQuality,
-      convertToWebp: finalConvertToWebp,
-      convertToPng: finalConvertToPng,
-      rateLimit: Number(body.rateLimit) > 0 ? Number(body.rateLimit) : previousValue.rateLimit,
-      showOnHomepage: body.showOnHomepage === true
-    }
-
-    await db.settings.update(
-      { key: 'privateApiConfig' },
-      {
-        $set: {
-          value: configValue,
-          updatedAt: new Date().toISOString()
-        }
+    // 入参保持历史形状；maxFileSize/showOnHomepage 为已移除的死字段，静默忽略
+    const next = {
+      ...policy,
+      processing: {
+        enableCompression: body.enableCompression === true,
+        quality: Number(body.compressionQuality) > 0 ? Number(body.compressionQuality) : policy.processing.quality,
+        convertTo: (body.convertToPng === true) ? 'png' : (body.convertToWebp === true ? 'webp' : 'none')
       },
-      { upsert: true }
-    )
+      limits: {
+        ...policy.limits,
+        authenticatedPerMin: Number(body.rateLimit) > 0 ? Math.round(Number(body.rateLimit)) : policy.limits.authenticatedPerMin
+      }
+    }
+
+    const saved = await saveUploadPolicy(next)
+    await syncLegacyKeys(saved)
 
     return {
       success: true,
       message: '配置已保存',
-      data: configValue
+      data: {
+        enableCompression: saved.processing.enableCompression,
+        compressionQuality: saved.processing.quality,
+        convertToWebp: saved.processing.convertTo === 'webp',
+        convertToPng: saved.processing.convertTo === 'png',
+        rateLimit: saved.limits.authenticatedPerMin
+      }
     }
   } catch (error) {
-    if (error.statusCode) {
-      throw error
-    }
-
+    if (error.statusCode) throw error
     console.error('[Config] 更新私有 API 配置失败:', error)
-    throw createError({
-      statusCode: 500,
-      message: '保存配置失败'
-    })
+    throw createError({ statusCode: 500, message: '保存配置失败' })
   }
 })

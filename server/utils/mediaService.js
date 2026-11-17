@@ -377,11 +377,11 @@ export async function assertAnonymousUploadAllowed(event) {
   if (await isBlacklisted(ip)) {
     throw createError({ statusCode: 403, message: '您的 IP 已被禁止上传' })
   }
-  const config = await getMediaConfig()
-  if (!config.allowAnonymousUpload) {
+  const policy = await getUploadPolicy()
+  if (!policy.allowAnonymousUpload) {
     throw createError({ statusCode: 403, message: '当前未开放匿名公开上传' })
   }
-  return config
+  return policy
 }
 
 export async function getMediaStats() {

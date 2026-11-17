@@ -39,7 +39,6 @@ export const useSettingsStore = defineStore('settings', {
       compressionQuality: 80,
       convertToWebp: false,
       convertToPng: false,
-      showOnHomepage: false
     },
     apiKeys: [],
     mediaConfig: {

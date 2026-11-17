@@ -2,6 +2,7 @@ import db from '../../utils/db.js'
 import { parseFormData } from '../../utils/media.js'
 import { sendUploadNotification } from '../../utils/notification.js'
 import { getMediaConfig } from '../../utils/mediaConfig.js'
+import { getUploadPolicy, processingToFlat } from '../../utils/uploadPolicy.js'
 import { validateMediaByConfig, createMediaRecord } from '../../utils/mediaService.js'
 import { USER_ROLES, requireAuthUser, resolveUploadRole } from '../../utils/auth.js'
 import { checkPrivateRateLimit } from '../../utils/rateLimit.js'
@@ -115,19 +116,18 @@ export default defineEventHandler(async (event) => {
     if (await isBlacklisted(clientIP)) {
       throw createError({ statusCode: 403, message: '您的 IP 已被禁止上传' })
     }
-    const uploadConfigDoc = await db.settings.findOne({ key: 'privateApiConfig' })
-    const uploadConfig = uploadConfigDoc?.value || {}
-    const mediaConfig = await getMediaConfig()
+    // 统一读取 uploadPolicy（新单一事实源；旧部署未迁移时由其内部合并旧键）
+    const policy = await getUploadPolicy()
+    const mediaConfig = policy
+    const uploadConfig = processingToFlat(policy.processing)
 
-    const rateLimitResult = await checkPrivateRateLimit(clientIP, uploadConfig.rateLimit || 100)
+    const rateLimitResult = await checkPrivateRateLimit(clientIP, policy.limits.authenticatedPerMin)
     if (!rateLimitResult.allowed) {
       throw createError({ statusCode: 429, message: `请求过于频繁，请 ${rateLimitResult.retryAfter} 秒后重试` })
     }
 
-    // 内容审核配置统一读取 publicApiConfig.contentSafety（审核队列同源），
-    // 修复此前误读 privateApiConfig.contentSafety（不存在）导致登录上传永不审核
-    const moderationConfigDoc = await db.settings.findOne({ key: 'publicApiConfig' })
-    const moderationEnabled = moderationConfigDoc?.value?.contentSafety?.enabled === true
+    // 内容审核配置与队列同源（uploadPolicy.contentSafety）
+    const moderationEnabled = policy.contentSafety?.enabled === true
 
     let file = null
     const contentType = getHeader(event, 'content-type') || ''
