@@ -3,13 +3,15 @@ import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
 
 // 数据目录（按优先级）：
-// 1. ONEIMG_DATA_DIR 环境变量（显式覆盖，便于隔离部署/备份/多实例）
+// 1. ONEIMG_DATA_DIR/db（显式覆盖数据根目录，与上传目录 ONEIMG_DATA_DIR/uploads 对称）
 // 2. 生产环境默认 /app/db（Docker 容器约定路径）
 // 3. 开发环境默认项目根目录下 db/
-// 注意：Nitro 构建会将 process.env.NODE_ENV 内联为字面量，
-// 因此生产/开发的切换在构建产物中是固定的，运行时只能靠 ONEIMG_DATA_DIR 覆盖。
+// 注意：ONEIMG_DATA_DIR 指向"数据根目录"，库文件位于其下 db/ 子目录——
+// 与 media.js 的 uploads 目录语义保持一致（历史上曾把该值直接当库目录，
+// 导致设置后库文件散落到数据根目录，v1.3.3 修正）。
 const dataDir = process.env.ONEIMG_DATA_DIR
-  || (process.env.NODE_ENV === 'production'
+  ? join(process.env.ONEIMG_DATA_DIR, 'db')
+  : (process.env.NODE_ENV === 'production'
     ? '/app/db'
     : join(process.cwd(), 'db'))
 
