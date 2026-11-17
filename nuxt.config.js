@@ -61,11 +61,12 @@ export default defineNuxtConfig({
 
   nitro: {
     // 移除 x-powered-by 响应头
-    poweredBy: false,
+    
     experimental: {
       bodySizeLimit: 100 * 1024 * 1024
     },
     routeRules: {
+      '/**': { headers: { 'x-powered-by': '' } },
       '/api/**': {
         cors: false,
         headers: {
