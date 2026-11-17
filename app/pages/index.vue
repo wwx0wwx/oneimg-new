@@ -199,6 +199,7 @@ import { useMediaStore } from '~/stores/media'
 import { useSettingsStore } from '~/stores/settings'
 import { useToastStore } from '~/stores/toast'
 import { copyToClipboard } from '../utils/clipboard'
+import { formatMediaLink } from '../../shared/mediaLinks.js'
 
 const authStore = useAuthStore()
 const mediaStore = useMediaStore()
@@ -254,35 +255,10 @@ const viewerMediaInfo = computed(() => {
   return `${filename} · ${typeText} · ${dimensionText}${formatFileSize(size)}`
 })
 
-function escapeHtml(value = '') {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
-
-function getLinkLabel(item) {
-  const filename = item.originalName || item.filename || ''
-  return filename.trim() || `${window.location.origin}${item.url}`
-}
-
+// 链接格式化统一使用 shared/mediaLinks（与服务端单一实现，origin 注入站点前缀）
 function formatLinkByType(type, item) {
-  const fullUrl = `${window.location.origin}${item.url}`
-  const label = getLinkLabel(item)
-  const alt = escapeHtml(label)
-  const isVideo = item.mediaType === 'video'
-
-  switch (type) {
-    case 'html':
-      return isVideo ? `<video controls src="${fullUrl}" title="${alt}"></video>` : `<img src="${fullUrl}" alt="${alt}" />`
-    case 'markdown':
-      return isVideo ? `[${label}](${fullUrl})` : `![${label}](${fullUrl})`
-    case 'bbcode':
-      return isVideo ? `[url=${fullUrl}]${label}[/url]` : `[img]${fullUrl}[/img]`
-    default:
-      return fullUrl
-  }
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+  return formatMediaLink(item, type, origin)
 }
 
 const copyMenuTitle = computed(() => mediaStore.selectedIds.length > 1 ? `复制链接(已选${mediaStore.selectedIds.length}项)` : '复制链接')

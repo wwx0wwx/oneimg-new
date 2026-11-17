@@ -195,12 +195,30 @@ export function normalizeOwner(record = {}) {
   }
 }
 
+/**
+ * 展示字段（url/coverUrl/poster）的唯一推导函数。
+ * 此前 toMediaRecord / buildMediaResponse / createMediaRecord 三处各自推导，
+ * 历史上 poster 指向视频自身的 bug（B11）正是分叉产物——规则在此单一化：
+ * - url = /i/{uuid}.{ext}
+ * - coverUrl = 记录值或 url
+ * - poster = 记录值或空（视频不设 poster，首帧由浏览器自渲染）
+ */
+export function derivePresentation(record = {}) {
+  const ext = normalizeExtension(record.format || getExtension(record.filename || ''))
+  const url = `/i/${record.uuid}.${ext}`
+  return {
+    url,
+    coverUrl: record.coverUrl || url,
+    poster: record.poster || ''
+  }
+}
+
 export function toMediaRecord(record = {}) {
   const ext = normalizeExtension(record.format || getExtension(record.filename || ''))
   const mediaType = inferMediaType(record)
   const visibility = normalizeVisibility(record)
   const owner = normalizeOwner(record)
-  const coverUrl = record.coverUrl || `/i/${record.uuid}.${ext}`
+  const { coverUrl, poster } = derivePresentation(record)
 
   return {
     ...record,
@@ -209,8 +227,7 @@ export function toMediaRecord(record = {}) {
     coverUrl,
     mimeType: record.mimeType || getMimeTypeByExtension(ext),
     duration: record.duration || 0,
-    // 视频 poster 不再指向视频自身（poster 需要图片，指向 .mp4 无效且引发元数据预载流量）
-    poster: record.poster || '',
+    poster,
     ...owner
   }
 }

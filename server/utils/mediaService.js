@@ -12,6 +12,7 @@ import {
   getImageMetadata,
   processImageWithConfig,
   toMediaRecord,
+  derivePresentation,
   deleteMediaFile,
   buildMediaLink
 } from './media.js'
@@ -40,7 +41,7 @@ export async function resolveSiteUrl(event) {
 
 export function buildMediaResponse(record, siteUrl = '') {
   const media = toMediaRecord(record)
-  const url = `/i/${media.uuid}.${normalizeExtension(media.format)}`
+  const { url, coverUrl, poster } = derivePresentation(media)
   return {
     id: media._id,
     uuid: media.uuid,
@@ -63,8 +64,8 @@ export function buildMediaResponse(record, siteUrl = '') {
     uploadedAt: media.uploadedAt,
     url,
     fullUrl: buildMediaLink({ ...media, url }, siteUrl),
-    coverUrl: media.coverUrl || url,
-    poster: media.poster || '',
+    coverUrl,
+    poster,
     isDeleted: media.isDeleted || false,
     isNsfw: media.isNsfw || false,
     moderationStatus: media.moderationStatus,
@@ -184,8 +185,6 @@ export async function createMediaRecord({
   let finalFormat = extension
   let isWebp = false
   let metadata = { width: 0, height: 0 }
-  let coverUrl = `/i/${uuid}.${extension}`
-  let poster = ''
 
   if (mediaType === 'image') {
     const processed = await processImageWithConfig(buffer, extension, uploadConfig)
@@ -193,12 +192,9 @@ export async function createMediaRecord({
     finalFormat = processed.finalFormat
     isWebp = processed.isWebp
     metadata = await getImageMetadata(buffer)
-    coverUrl = `/i/${uuid}.${finalFormat}`
-  } else {
-    coverUrl = `/i/${uuid}.${finalFormat}`
-    // 视频不设置 poster（首帧由浏览器自行渲染，避免 poster 指向视频自身的无效引用）
-    poster = ''
   }
+  // 展示字段统一经 derivePresentation 推导（poster 一律不指向视频自身）
+  const { coverUrl, poster } = derivePresentation({ uuid, format: finalFormat })
 
   const filename = `${uuid}.${finalFormat}`
   await saveUploadedFile(buffer, filename)

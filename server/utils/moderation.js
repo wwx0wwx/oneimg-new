@@ -1,7 +1,51 @@
 import { readFile } from 'fs/promises'
 import { existsSync } from 'fs'
-import { getMediaPath } from './media.js'
+import { getMediaPath, getMimeTypeByExtension } from './media.js'
 import { pinnedFetch } from './netGuard.js'
+
+// ============ 出站请求共享助手（此前三个适配器各自复制一份） ============
+
+/**
+ * 固定 IP 的 multipart POST。返回解析后的 JSON。
+ * FormData 使用 form-data 库构建（与外部 API 的兼容性最好），getBuffer 后统一经 pinnedFetch 发送。
+ */
+async function postMultipart(url, { fieldName, buffer, filename, contentType, headers = {}, timeoutMs = 30000 }) {
+  const FormDataLib = (await import('form-data')).default
+  const form = new FormDataLib()
+  form.append(fieldName, buffer, { filename, contentType })
+  const response = await pinnedFetch(url, {
+    method: 'POST',
+    body: form.getBuffer(),
+    headers: { ...form.getHeaders(), ...headers },
+    timeoutMs
+  })
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(`HTTP ${response.status}`)
+  }
+  try {
+    return JSON.parse(response.body.toString('utf8'))
+  } catch {
+    throw new Error('响应不是有效 JSON')
+  }
+}
+
+/** 固定 IP 的 JSON POST。返回解析后的 JSON。 */
+async function postJson(url, body, { headers = {}, timeoutMs = 30000 } = {}) {
+  const response = await pinnedFetch(url, {
+    method: 'POST',
+    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json', ...headers },
+    timeoutMs
+  })
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(`HTTP ${response.status}`)
+  }
+  try {
+    return JSON.parse(response.body.toString('utf8'))
+  } catch {
+    throw new Error('响应不是有效 JSON')
+  }
+}
 
 /**
  * 内容审核服务 - 支持多厂商API适配
@@ -75,7 +119,7 @@ const providerAdapters = {
         const formData = new FormData()
         formData.append('image', imageBuffer, {
           filename: filename,
-          contentType: getMimeType(filename)
+          contentType: getMimeTypeByExtension(filename)
         })
 
         // 构建请求头
@@ -175,7 +219,7 @@ const providerAdapters = {
         const uploadFormData = new FormData()
         uploadFormData.append('file', imageBuffer, {
           filename: filename,
-          contentType: getMimeType(filename)
+          contentType: getMimeTypeByExtension(filename)
         })
 
         const uploadHeaders = {
@@ -301,110 +345,40 @@ const providerAdapters = {
         const apiUrl = config.apiUrl || this.defaultApiUrl
         const apiKey = config.apiKey || this.defaultApiKey
 
-        // 检查 API URL 是否已配置
         if (!apiUrl) {
-          return {
-            success: false,
-            error: 'nsfw_detector 服务 API 地址未配置，请在设置中配置'
-          }
+          return { success: false, error: 'nsfw_detector 服务 API 地址未配置，请在设置中配置' }
         }
 
-        // 构建 FormData
-        const FormData = (await import('form-data')).default
-        const formData = new FormData()
-        formData.append('file', imageBuffer, {
-          filename: filename,
-          contentType: getMimeType(filename)
+        const result = await postMultipart(apiUrl, {
+          fieldName: 'file',
+          buffer: imageBuffer,
+          filename,
+          contentType: getMimeTypeByExtension(filename),
+          headers: {
+            'Accept': 'application/json, text/plain, */*',
+            ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {})
+          }
         })
 
-        // 构建请求头
-        const headers = {
-          ...formData.getHeaders(),
-          'Accept': 'application/json, text/plain, */*'
-        }
-
-        // 添加 Bearer Token 认证（如果配置了 API Key）
-        if (apiKey) {
-          headers['Authorization'] = `Bearer ${apiKey}`
-        }
-
-        // 发送请求（固定 IP 出站 + 30s 超时）
-        const formBuffer = formData.getBuffer()
-        let response
-        try {
-          response = await pinnedFetch(apiUrl, {
-            method: 'POST',
-            body: formBuffer,
-            headers,
-            timeoutMs: 30000
-          })
-        } catch (err) {
-          return { success: false, error: `检测请求失败: ${err.message}` }
-        }
-
-        if (response.status < 200 || response.status >= 300) {
-          return {
-            success: false,
-            error: `API请求失败: HTTP ${response.status}`
-          }
-        }
-
-        let result
-        try {
-          result = JSON.parse(response.body.toString('utf8'))
-        } catch {
-          return { success: false, error: 'API响应不是有效 JSON' }
-        }
-
-        // 解析响应
         if (result.status !== 'success') {
-          return {
-            success: false,
-            error: `API返回错误: ${JSON.stringify(result) || 'unknown error'}`
-          }
+          return { success: false, error: `API返回错误: ${JSON.stringify(result) || 'unknown error'}` }
         }
 
         // 使用配置的阈值判断是否违规（默认80%）
         const nsfwScore = result.result?.nsfw || 0
         const threshold = config.threshold !== undefined ? config.threshold : 0.8
-        const isNsfw = nsfwScore >= threshold
-
         return {
           success: true,
-          isNsfw: isNsfw,
+          isNsfw: nsfwScore >= threshold,
           score: nsfwScore,
-          threshold: threshold,
+          threshold,
           rawResult: result
         }
       } catch (error) {
-        return {
-          success: false,
-          error: error.message || '检测请求失败'
-        }
+        return { success: false, error: error.message || '检测请求失败' }
       }
     }
   }
-}
-
-/**
- * 根据文件名获取 MIME 类型
- */
-function getMimeType(filename) {
-  const ext = filename.split('.').pop()?.toLowerCase()
-  const mimeTypes = {
-    'jpg': 'image/jpeg',
-    'jpeg': 'image/jpeg',
-    'png': 'image/png',
-    'gif': 'image/gif',
-    'webp': 'image/webp',
-    'avif': 'image/avif',
-    'svg': 'image/svg+xml',
-    'bmp': 'image/bmp',
-    'ico': 'image/x-icon',
-    'tiff': 'image/tiff',
-    'tif': 'image/tiff'
-  }
-  return mimeTypes[ext] || 'application/octet-stream'
 }
 
 /**
