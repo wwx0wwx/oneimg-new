@@ -1,5 +1,17 @@
 ## Changelog
 
+### 2.1.0
+
+**结构重构（按重构方案 P0-P5，零行为变化 + 配置模型统一）：**
+
+- **回归护栏（P0）**：`test/unit`（CI 可跑）+ `test/regression`（自包含实例的 28 项 e2e 断言，覆盖三轮审计全部安全/功能项）；恢复 GitHub Actions CI（install + unit + build）
+- **纯抽取（P1）**：`shared/mediaLinks.js` 前后端单一链接格式化实现（label 回退语义统一为服务端）；`media.js#derivePresentation` 唯一 url/coverUrl/poster 推导；moderation 三适配器共享 `postMultipart/postJson`（514→488 行）
+- **notification 目录化（P2）**：974 行巨石拆为 config（唯一接触加解密）/template/channels 四渠道适配器（统一 `{send,test}` 接口）/index 编排；原文件保留为转发 shim（v2.2 移除）；对外导出与引用方零改动
+- **api.vue 面板化（P3）**：896 行 SFC 拆为 54 行薄壳 + 5 个 `components/admin/*Panel`；`useConfigForm` 收敛三份重复表单生命周期
+- **uploadPolicy 单一事实源（P4）**：新模型统一 策略/压缩处理/各接口限速/并发/内容安全；读取优先新键、旧三键即时合并兜底；启动幂等迁移（内容比较）；**旧端点形状不变并双写旧键——任意时刻可回滚 v1.3.3 且配置一致**；新增管理端点 `GET/PUT /api/upload-policy`
+- **死字段删除**：`privateApiConfig.maxFileSize` 与 `showOnHomepage`（均无服务端消费方，UI 输入一并移除；实际限额在媒体策略中配置）
+- **压缩/转换合一说明**：历史上 public/private 各存一份压缩配置，统一为全局 `processing`（合并取登录侧值；两份不一致的部署请在新端点重新确认）
+
 ### 1.3.3
 
 **修复:**

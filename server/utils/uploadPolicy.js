@@ -175,28 +175,18 @@ export async function migrateToUploadPolicy() {
     db.settings.findOne({ key: 'privateApiConfig' })
   ])
 
-  const legacyNewest = Math.max(
-    new Date(mediaDoc?.updatedAt || 0).getTime() || 0,
-    new Date(publicDoc?.updatedAt || 0).getTime() || 0,
-    new Date(privateDoc?.updatedAt || 0).getTime() || 0
-  )
-  const currentAt = new Date(newDoc?.updatedAt || 0).getTime() || 0
-
-  // 端点双写保证新旧键同步更新（updatedAt 相近）；此处仅处理
-  // "新键不存在"或"旧键明显更新（例如回滚期改过旧键）"两种情况
-  if (newDoc?.value && legacyNewest <= currentAt + 5000) {
-    return { migrated: false }
-  }
-
   const merged = mergeFromLegacy({
     mediaConfig: mediaDoc?.value || {},
     publicApiConfig: publicDoc?.value || {},
     privateApiConfig: privateDoc?.value || {}
   })
-  // 若新键已存在且旧键没有更新过（纯重启），不覆盖新键内容
-  if (newDoc?.value && legacyNewest === 0) {
+
+  // 幂等：新键已存在且与旧键合并结果一致（端点双写保证同步）则跳过。
+  // 内容比较而非时间戳比较——双写时旧键写入略晚于新键，时间比较会误判。
+  if (newDoc?.value && JSON.stringify(normalizePolicy(newDoc.value)) === JSON.stringify(merged)) {
     return { migrated: false }
   }
+
   await saveUploadPolicy(merged)
   console.log('[UploadPolicy] 已由历史配置合并生成统一上传策略（旧配置键保留用于回滚）')
   return { migrated: true }

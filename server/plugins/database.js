@@ -181,6 +181,8 @@ export async function initDatabase() {
     await initPrivateApiConfig()
     await initAppSettings()
     await initMediaConfig()
+    // 统一上传策略：由历史三配置键幂等合并生成（旧键保留用于回滚）
+    await migrateToUploadPolicy()
     console.log('[Database] 数据库初始化完成')
   } catch (error) {
     console.error('[Database] 数据库初始化失败:', error)
