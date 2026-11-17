@@ -69,7 +69,8 @@ export default defineNuxtConfig({
     // 移除 x-powered-by 响应头
     
     experimental: {
-      bodySizeLimit: 100 * 1024 * 1024
+      // S2：全局 body 上限收紧（上传端点由 multer/nitro 自行控制 multipart 流式大小）
+      bodySizeLimit: '16mb'
     },
     routeRules: {
       '/**': { headers: { 'x-powered-by': '' } },

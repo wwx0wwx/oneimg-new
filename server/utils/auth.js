@@ -92,9 +92,9 @@ export function canManageMedia(user, media) {
 
 export function canViewMedia(user, media) {
   if (!media || media.isDeleted || media.isNsfw) return false
-  // 审核进行中（pending）：先隐藏后审核，仅所有者与管理员可见，
-  // 消除"上传即刻公开、审核结果出来前违规内容可被任意访问"的暴露窗口
-  if (media.moderationStatus === 'pending') {
+  // 审核进行中(pending)或审核失败(failed)：对非所有者/管理员不可见。
+  // failed 不 fail-open——提供商故障不能让待审内容重新公开（S1）
+  if (media.moderationStatus === 'pending' || media.moderationStatus === 'failed') {
     if (!user) return false
     return isAdminUser(user) || media.ownerId === user._id
   }

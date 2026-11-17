@@ -178,7 +178,8 @@
               {{ testing === 'webhook' ? '测试中...' : '发送测试通知' }}
             </button>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              点击发送一条测试通知，验证 Webhook 配置是否正确
+              点击发送一条测试通知，验证 Webhook 配置是否正确。
+              <span class="text-orange-500">注意：目标 URL 的重定向（301/302）不会被跟随，请填最终地址。</span>
             </p>
           </div>
         </div>

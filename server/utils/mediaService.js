@@ -288,7 +288,7 @@ export async function listVisibleMedia({ user = null, page = 1, limit = 20 }) {
   let query
   if (!user) {
     // 匿名：审核 pending 的媒体不出现在列表（否则卡片缩略图 403 满屏破图）
-    query = { ...base, visibility: { $ne: 'private' }, moderationStatus: { $ne: 'pending' } }
+    query = { ...base, visibility: { $ne: 'private' }, moderationStatus: { $nin: ['pending', 'failed'] } }
   } else if (isAdminUser(user)) {
     query = base
   } else {
@@ -296,7 +296,7 @@ export async function listVisibleMedia({ user = null, page = 1, limit = 20 }) {
     query = {
       ...base,
       $or: [
-        { visibility: { $ne: 'private' }, moderationStatus: { $ne: 'pending' } },
+        { visibility: { $ne: 'private' }, moderationStatus: { $nin: ['pending', 'failed'] } },
         { ownerId: user._id }
       ]
     }
