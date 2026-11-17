@@ -58,7 +58,8 @@ export default defineEventHandler(async (event) => {
         ...previousValue.contentSafety,
         ...body.contentSafety,
         autoBlacklistIp: body.contentSafety.autoBlacklistIp === true,
-        providers: stripProviderKeys(body.contentSafety.providers || previousValue.contentSafety.providers)
+        // 部分提交时与现有配置合并，避免其余厂商的 URL/阈值配置被静默丢弃
+        providers: stripProviderKeys({ ...previousValue.contentSafety.providers, ...body.contentSafety.providers })
       }
     }
 

@@ -8,7 +8,6 @@ const DEFAULT_PRIVATE_CONFIG = {
   convertToWebp: false,
   convertToPng: false,
   rateLimit: 60,
-  maxConcurrent: 2,
   showOnHomepage: false
 }
 
@@ -34,7 +33,6 @@ export default defineEventHandler(async (event) => {
       convertToWebp: finalConvertToWebp,
       convertToPng: finalConvertToPng,
       rateLimit: Number(body.rateLimit) > 0 ? Number(body.rateLimit) : previousValue.rateLimit,
-      maxConcurrent: Number(body.maxConcurrent) > 0 ? Number(body.maxConcurrent) : previousValue.maxConcurrent,
       showOnHomepage: body.showOnHomepage === true
     }
 

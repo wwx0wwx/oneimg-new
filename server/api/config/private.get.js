@@ -8,7 +8,6 @@ const DEFAULT_PRIVATE_CONFIG = {
   convertToWebp: false,
   convertToPng: false,
   rateLimit: 60,
-  maxConcurrent: 2,
   showOnHomepage: false
 }
 

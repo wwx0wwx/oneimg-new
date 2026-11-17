@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import { v4 as uuidv4 } from 'uuid'
 import { getDefaultContentSafetyConfig } from '../utils/moderation.js'
-import { saveMediaConfig } from '../utils/mediaConfig.js'
+import { saveMediaConfig, DEFAULT_MEDIA_CONFIG } from '../utils/mediaConfig.js'
 
 async function initDefaultUser() {
   const existingAdmin = await db.users.findOne({ role: 'admin' })
@@ -103,7 +103,6 @@ async function initPrivateApiConfig() {
         convertToWebp: false,
         convertToPng: false,
         rateLimit: 100,
-        maxConcurrent: 5,
         showOnHomepage: false
       },
       createdAt: new Date().toISOString(),

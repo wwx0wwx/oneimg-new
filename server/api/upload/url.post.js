@@ -2,6 +2,8 @@ import db from '../../utils/db.js'
 import { requireAuthUser, getMediaOwnerFromUser, isAdminUser, USER_ROLES } from '../../utils/auth.js'
 import { importMediaFromUrl, MAX_URL_IMPORT_BATCH } from '../../utils/urlImport.js'
 import { getMediaConfig } from '../../utils/mediaConfig.js'
+import { checkRateLimit } from '../../utils/rateLimit.js'
+import { isBlacklisted } from '../../utils/ipBlacklist.js'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -33,6 +35,17 @@ export default defineEventHandler(async (event) => {
       owner = getMediaOwnerFromUser(user)
     }
 
+    // URL 导入会触发服务端出站下载 + sharp 处理，独立限速防滥用
+    const clientIP = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
+    const rl = await checkRateLimit('urlimport', `urlimport:${clientIP}`, { limit: 10 })
+    if (!rl.allowed) {
+      throw createError({ statusCode: 429, message: `导入请求过于频繁，请 ${rl.retryAfter ?? 60} 秒后重试` })
+    }
+
+    if (await isBlacklisted(clientIP)) {
+      throw createError({ statusCode: 403, message: '您的 IP 已被禁止上传' })
+    }
+
     const body = await readBody(event)
     const { url, returnBase64 = false } = body
 
@@ -53,6 +66,9 @@ export default defineEventHandler(async (event) => {
     const configDoc = await db.settings.findOne({ key: 'privateApiConfig' })
     const uploadConfig = configDoc?.value || {}
     const mediaConfig = await getMediaConfig()
+    // 内容审核配置统一读取 publicApiConfig.contentSafety（与上传/队列同源）
+    const moderationConfigDoc = await db.settings.findOne({ key: 'publicApiConfig' })
+    const moderationEnabled = moderationConfigDoc?.value?.contentSafety?.enabled === true
 
     const results = []
     const errors = []
@@ -70,8 +86,10 @@ export default defineEventHandler(async (event) => {
           owner,
           ownerRole: owner?.role || USER_ROLES.USER,
           uploadedByType,
-          visibility: isAdminUser({ role: owner?.role }) ? 'public' : (mediaConfig.defaultUserVisibility || 'private'),
+          // 管理员 URL 导入不再硬编码 public，与 multipart 上传一致走默认可见性
+          visibility: mediaConfig.defaultUserVisibility || 'private',
           uploadConfig,
+          enableModeration: moderationEnabled,
           returnBase64,
           apiKeyId
         })

@@ -1,7 +1,7 @@
 import { readFile } from 'fs/promises'
 import { existsSync } from 'fs'
 import { getMediaPath } from './media.js'
-import { assertSafeOutboundUrl } from './netGuard.js'
+import { pinnedFetch } from './netGuard.js'
 
 /**
  * 内容审核服务 - 支持多厂商API适配
@@ -92,22 +92,32 @@ const providerAdapters = {
         // form-data 库需要转换为 Buffer 才能正确与 fetch 配合使用
         const formBuffer = formData.getBuffer()
 
-        // 发送请求
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          body: formBuffer,
-          headers: headers,
-          signal: AbortSignal.timeout(30000)
-        })
+        // 发送请求（固定 IP 出站 + 30s 超时）
+        let response
+        try {
+          response = await pinnedFetch(apiUrl, {
+            method: 'POST',
+            body: formBuffer,
+            headers,
+            timeoutMs: 30000
+          })
+        } catch (err) {
+          return { success: false, error: `检测请求失败: ${err.message}` }
+        }
 
-        if (!response.ok) {
+        if (response.status < 200 || response.status >= 300) {
           return {
             success: false,
-            error: `API请求失败: ${response.status} ${response.statusText}`
+            error: `API请求失败: HTTP ${response.status}`
           }
         }
 
-        const result = await response.json()
+        let result
+        try {
+          result = JSON.parse(response.body.toString('utf8'))
+        } catch {
+          return { success: false, error: 'API响应不是有效 JSON' }
+        }
 
         // 解析响应
         if (result.code !== 0) {
@@ -173,21 +183,31 @@ const providerAdapters = {
         }
         const uploadBuffer = uploadFormData.getBuffer()
 
-        const uploadResponse = await fetch(uploadUrl, {
-          method: 'POST',
-          body: uploadBuffer,
-          headers: uploadHeaders,
-          signal: AbortSignal.timeout(30000)
-        })
+        let uploadResponse
+        try {
+          uploadResponse = await pinnedFetch(uploadUrl, {
+            method: 'POST',
+            body: uploadBuffer,
+            headers: uploadHeaders,
+            timeoutMs: 30000
+          })
+        } catch (err) {
+          return { success: false, error: `上传失败: ${err.message}` }
+        }
 
-        if (!uploadResponse.ok) {
+        if (uploadResponse.status < 200 || uploadResponse.status >= 300) {
           return {
             success: false,
-            error: `上传失败: ${uploadResponse.status} ${uploadResponse.statusText}`
+            error: `上传失败: HTTP ${uploadResponse.status}`
           }
         }
 
-        const uploadResult = await uploadResponse.json()
+        let uploadResult
+        try {
+          uploadResult = JSON.parse(uploadResponse.body.toString('utf8'))
+        } catch {
+          return { success: false, error: '上传响应不是有效 JSON' }
+        }
 
         if (!uploadResult.filePath) {
           return {
@@ -197,27 +217,37 @@ const providerAdapters = {
         }
 
         // 第二步：调用检测接口（使用 JSON 格式）
-        const detectResponse = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          signal: AbortSignal.timeout(30000),
-          body: JSON.stringify({
-            imageFile: uploadResult.filePath,
-            sensitivity: 0.5,
-            analysisMode: 'auto'
+        let detectResponse
+        try {
+          detectResponse = await pinnedFetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            timeoutMs: 30000,
+            body: JSON.stringify({
+              imageFile: uploadResult.filePath,
+              sensitivity: 0.5,
+              analysisMode: 'auto'
+            })
           })
-        })
+        } catch (err) {
+          return { success: false, error: `检测失败: ${err.message}` }
+        }
 
-        if (!detectResponse.ok) {
+        if (detectResponse.status < 200 || detectResponse.status >= 300) {
           return {
             success: false,
-            error: `检测失败: ${detectResponse.status} ${detectResponse.statusText}`
+            error: `检测失败: HTTP ${detectResponse.status}`
           }
         }
 
-        const result = await detectResponse.json()
+        let result
+        try {
+          result = JSON.parse(detectResponse.body.toString('utf8'))
+        } catch {
+          return { success: false, error: '检测响应不是有效 JSON' }
+        }
 
         // 解析响应 - 使用 isSafe 字段判断
         if (!result.data) {
@@ -298,23 +328,33 @@ const providerAdapters = {
           headers['Authorization'] = `Bearer ${apiKey}`
         }
 
-        // 发送请求
+        // 发送请求（固定 IP 出站 + 30s 超时）
         const formBuffer = formData.getBuffer()
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          body: formBuffer,
-          headers: headers,
-          signal: AbortSignal.timeout(30000)
-        })
+        let response
+        try {
+          response = await pinnedFetch(apiUrl, {
+            method: 'POST',
+            body: formBuffer,
+            headers,
+            timeoutMs: 30000
+          })
+        } catch (err) {
+          return { success: false, error: `检测请求失败: ${err.message}` }
+        }
 
-        if (!response.ok) {
+        if (response.status < 200 || response.status >= 300) {
           return {
             success: false,
-            error: `API请求失败: ${response.status} ${response.statusText}`
+            error: `API请求失败: HTTP ${response.status}`
           }
         }
 
-        const result = await response.json()
+        let result
+        try {
+          result = JSON.parse(response.body.toString('utf8'))
+        } catch {
+          return { success: false, error: 'API响应不是有效 JSON' }
+        }
 
         // 解析响应
         if (result.status !== 'success') {
@@ -418,12 +458,8 @@ export async function moderateImage(imageId, filename, contentSafetyConfig) {
   }
 
   try {
-    // 出站安全校验：管理员可配的检测服务地址同样不允许指向内网/回环
-    const outboundUrls = [providerConfig.uploadUrl, providerConfig.apiUrl].filter(Boolean)
-    for (const u of outboundUrls) {
-      await assertSafeOutboundUrl(u)
-    }
-
+    // 出站安全由 pinnedFetch 统一处理（地址校验 + 固定 IP 连接 + 超时），
+    // 管理员可配的检测服务地址同样不允许指向内网/回环
     const imageBuffer = await readFile(filePath)
     const result = await adapter.detect(imageBuffer, filename, providerConfig)
 

@@ -1,5 +1,35 @@
 ## Changelog
 
+### 1.3.2
+
+**P0 修复（v1.3.1 回归与渲染缺陷）:**
+
+- **修复全站图标消失**：CSP `connect-src` 补充 `https://api.iconify.design`（@nuxt/icon 运行时图标源，v1.3.1 引入的 CSP 将其拦截）
+- **修复公告顶部横幅显示 HTML 源码**：横幅分支改用 `v-html` 渲染服务端净化后的内容（与弹窗一致）
+
+**安全加固:**
+
+- **上传内容真实格式校验（S1/S2）**：新增 magic bytes 嗅探——图片经 `sharp` 解析真实格式（ico 手动识别 magic），视频校验容器头（mp4/mov=ftyp、webm=EBML）；垃圾字节伪装媒体直接 400；MIME 与扩展名改为精确匹配（此前 .png 声明 image/jpeg 也能通过）；apng↔png 视为等价格式
+- **URL 导入限速（S3）**：单发与 SSE 批量接口每 IP 每分钟 10 次，超出 429
+- **通知配置 PUT 响应脱敏（S4）**：响应与 GET 一致只回尾 4 位（此前原样回显明文密钥）
+- **netGuard 保留段补全（S5）**：新增 `2002::/16`（6to4）、`64:ff9b::/96`（NAT64）、IPv4-compatible `::a.b.c.d`、`224.0.0.0/4`（组播）、`240.0.0.0/4`、`192.0.0.0/24`、`198.18.0.0/15`
+- **出站请求固定 IP（S6）**：新增 `pinnedFetch`（校验地址 + 固定 IP 连接 + 超时 + 响应上限），Webhook 发送/测试与三个内容安全适配器全部切换——与 URL 导入真正同标准，消除检查后解析 TOCTOU
+- **管理员改用户名/角色撤销旧 token（S7）**；**唯一活跃管理员不可自我降级（S8）**
+- **Server酱出站补超时（S9）**；**base64 上传先按字符长度估算再解码（S10）**，避免先解码 ~133MB 再检查的内存尖峰
+
+**BUG 修复:**
+
+- **私有并发"死开关"移除（B5）**：`privateApiConfig.maxConcurrent` 从未接线，连同 4 个死函数与配置字段一并删除
+- **回收站/审核任务定时清理（B6/B7）**：每日维护任务——软删除超 30 天的媒体自动硬删除、completed/error 审核任务超 7 天清理（此前永久累积）
+- **审核覆盖统一（B8）**：登录上传与 URL 导入的审核开关统一读取 `publicApiConfig.contentSafety`（此前登录上传读不存在的 privateApiConfig 字段导致永不审核、URL 导入完全不审核）；管理员 URL 导入不再硬编码 public，与 multipart 一致走默认可见性
+- **预审隐藏（B9）**：审核 pending 期间媒体仅所有者/管理员可见（消除"先公开后审核"暴露窗口）；IP 黑名单覆盖登录上传与 URL 导入（此前只挡匿名）
+- 统计"检测图片总数"改为只统计真正送检完成的（B10）；视频 poster 不再指向视频自身（B11）；contentSafety.providers 部分提交与现有配置合并（B12）；创建/重置用户密码不再 trim（B13）
+- 重复响应头：应用层保留 `X-Content-Type-Options`，nginx 层去除（部署项）
+
+**代码清理:**
+
+- 删除 0 引用的 `server/utils/authMiddleware.js`；`database.js` 恢复 `DEFAULT_MEDIA_CONFIG` 显式 import（消除对 Nitro auto-import 的隐式依赖）
+
 ### 1.3.1
 
 **Legacy cleanup（L1-L19 遗留问题清零）:**

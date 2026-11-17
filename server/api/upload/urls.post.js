@@ -2,8 +2,10 @@ import db from '../../utils/db.js'
 import { requireAuthUser, getMediaOwnerFromUser, resolveUploadRole } from '../../utils/auth.js'
 import { importMediaFromUrl, MAX_URL_IMPORT_BATCH } from '../../utils/urlImport.js'
 import { getMediaConfig } from '../../utils/mediaConfig.js'
+import { checkRateLimit } from '../../utils/rateLimit.js'
+import { isBlacklisted } from '../../utils/ipBlacklist.js'
 
-async function downloadAndSaveMedia({ event, url, uploadConfig, owner, ownerRole, mediaConfig }) {
+async function downloadAndSaveMedia({ event, url, uploadConfig, owner, ownerRole, mediaConfig, enableModeration }) {
   return await importMediaFromUrl({
     event,
     url,
@@ -11,7 +13,8 @@ async function downloadAndSaveMedia({ event, url, uploadConfig, owner, ownerRole
     ownerRole,
     uploadedByType: 'url',
     visibility: mediaConfig.defaultUserVisibility || 'private',
-    uploadConfig
+    uploadConfig,
+    enableModeration
   })
 }
 
@@ -20,6 +23,17 @@ export default defineEventHandler(async (event) => {
     const user = await requireAuthUser(event)
     const owner = getMediaOwnerFromUser(user)
     const ownerRole = resolveUploadRole(user)
+
+    // 批量导入限速（SSE 单请求最多 20 个 URL，且每 IP 每分钟最多 10 次导入）
+    const clientIP = getRequestIP(event, { xForwardedFor: true }) || 'unknown'
+    const rl = await checkRateLimit('urlimport', `urlimport:${clientIP}`, { limit: 10 })
+    if (!rl.allowed) {
+      throw createError({ statusCode: 429, message: `导入请求过于频繁，请 ${rl.retryAfter ?? 60} 秒后重试` })
+    }
+
+    if (await isBlacklisted(clientIP)) {
+      throw createError({ statusCode: 403, message: '您的 IP 已被禁止上传' })
+    }
 
     const body = await readBody(event)
     const { urls } = body
@@ -40,6 +54,8 @@ export default defineEventHandler(async (event) => {
     const configDoc = await db.settings.findOne({ key: 'privateApiConfig' })
     const uploadConfig = configDoc?.value || {}
     const mediaConfig = await getMediaConfig()
+    const moderationConfigDoc = await db.settings.findOne({ key: 'publicApiConfig' })
+    const moderationEnabled = moderationConfigDoc?.value?.contentSafety?.enabled === true
 
     setHeader(event, 'Content-Type', 'text/event-stream')
     setHeader(event, 'Cache-Control', 'no-cache')
@@ -81,7 +97,8 @@ export default defineEventHandler(async (event) => {
           uploadConfig,
           owner,
           ownerRole,
-          mediaConfig
+          mediaConfig,
+          enableModeration: moderationEnabled
         })
         successCount++
         results.push({ url, success: true, data: result })

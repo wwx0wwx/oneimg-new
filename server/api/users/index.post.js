@@ -7,7 +7,8 @@ export default defineEventHandler(async (event) => {
   await requireAdmin(event)
   const body = await readBody(event)
   const username = String(body.username || '').trim()
-  const password = String(body.password || '').trim()
+  // 密码不做 trim：首尾空格是密码的一部分（与自助改密行为一致）
+  const password = String(body.password || '')
 
   if (username.length < 3) {
     throw createError({ statusCode: 400, message: '用户名至少 3 位' })

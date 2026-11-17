@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, message: '请选择要上传的媒体文件' })
     }
 
-    validateMediaByConfig({
+    await validateMediaByConfig({
       file,
       role: USER_ROLES.ANONYMOUS,
       config: mediaConfig,

@@ -10,7 +10,7 @@ import TelegramBot from 'node-telegram-bot-api'
 import nodemailer from 'nodemailer'
 import { getMediaPath } from './media.js'
 import { encryptSecret, decryptSecret, maskSecret } from './secretBox.js'
-import { assertSafeOutboundUrl } from './netGuard.js'
+import { assertSafeOutboundUrl, pinnedFetch } from './netGuard.js'
 
 // 通知类型枚举
 export const NOTIFICATION_TYPES = {
@@ -218,17 +218,21 @@ async function sendWebhookNotification(config, payload) {
       ...webhook.headers
     }
 
-    // 出站安全校验（拒绝内网/回环目标）+ 15s 超时
-    await assertSafeOutboundUrl(webhook.url)
-    const response = await fetch(webhook.url, {
-      method: webhook.method || 'POST',
-      headers,
-      body,
-      signal: AbortSignal.timeout(15000)
-    })
+    // 固定 IP 出站（校验 + 连接同一地址，消除 TOCTOU）+ 15s 超时
+    let response
+    try {
+      response = await pinnedFetch(webhook.url, {
+        method: webhook.method || 'POST',
+        headers,
+        body,
+        timeoutMs: 15000
+      })
+    } catch (err) {
+      return { success: false, error: `Webhook 请求失败: ${err.message}` }
+    }
 
-    if (!response.ok) {
-      const errorText = await response.text()
+    if (response.status < 200 || response.status >= 300) {
+      const errorText = response.body.toString('utf8')
       console.error('[Notification] Webhook 请求失败:', response.status, errorText)
       return {
         success: false,
@@ -643,7 +647,8 @@ async function sendServerChanNotification(config, payload) {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
       },
-      body: params
+      body: params,
+      signal: AbortSignal.timeout(15000)
     })
 
     const data = await response.json()
@@ -791,9 +796,6 @@ export async function testWebhook(webhookConfig) {
       data: { test: true }
     }
 
-    // 出站安全校验 + 超时
-    await assertSafeOutboundUrl(webhookConfig.url)
-
     // 替换模板变量
     let body = webhookConfig.bodyTemplate
     body = replaceTemplateVariables(body, testPayload)
@@ -803,15 +805,21 @@ export async function testWebhook(webhookConfig) {
       ...webhookConfig.headers
     }
 
-    const response = await fetch(webhookConfig.url, {
-      method: webhookConfig.method || 'POST',
-      headers,
-      body,
-      signal: AbortSignal.timeout(15000)
-    })
+    // 固定 IP 出站 + 超时
+    let response
+    try {
+      response = await pinnedFetch(webhookConfig.url, {
+        method: webhookConfig.method || 'POST',
+        headers,
+        body,
+        timeoutMs: 15000
+      })
+    } catch (err) {
+      return { success: false, error: `Webhook 请求失败: ${err.message}` }
+    }
 
-    if (!response.ok) {
-      const errorText = await response.text()
+    if (response.status < 200 || response.status >= 300) {
+      const errorText = response.body.toString('utf8')
       return {
         success: false,
         error: `HTTP ${response.status}: ${errorText.substring(0, 200)}`
@@ -931,7 +939,8 @@ export async function testServerChan(serverchanConfig) {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
       },
-      body: params
+      body: params,
+      signal: AbortSignal.timeout(15000)
     })
 
     const data = await response.json()

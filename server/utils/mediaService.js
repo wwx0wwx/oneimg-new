@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid'
+import sharp from 'sharp'
 import db from './db.js'
 import {
   getExtension,
@@ -63,7 +64,7 @@ export function buildMediaResponse(record, siteUrl = '') {
     url,
     fullUrl: buildMediaLink({ ...media, url }, siteUrl),
     coverUrl: media.coverUrl || url,
-    poster: media.poster || (media.mediaType === 'video' ? media.coverUrl || url : ''),
+    poster: media.poster || '',
     isDeleted: media.isDeleted || false,
     isNsfw: media.isNsfw || false,
     moderationStatus: media.moderationStatus,
@@ -71,10 +72,54 @@ export function buildMediaResponse(record, siteUrl = '') {
   }
 }
 
-export function validateMediaByConfig({ file, role = USER_ROLES.ANONYMOUS, config, allowAnonymousUpload }) {
+// 宽容的 MIME 归一化（部分客户端/远端服务会返回非规范写法）
+function normalizeMime(mime = '') {
+  const normalized = String(mime || '').toLowerCase().split(';')[0].trim()
+  if (normalized === 'image/jpg') return 'image/jpeg'
+  if (normalized === 'image/x-icon' || normalized === 'image/vnd.microsoft.icon') return 'image/x-icon'
+  return normalized
+}
+
+/**
+ * 内容嗅探：识别文件真实格式（magic bytes / 容器头）。
+ * - 图片：sharp 解析 metadata.format（svg 识别为 'svg'；apng 归入 'png'；
+ *   ico sharp 不支持，按 ICO magic 00 00 01 00 手动识别）
+ * - 视频：容器头（mp4/mov = offset 4 处 'ftyp'；webm = EBML 头 0x1A45DFA3）
+ * 返回 normalizeExtension 后的格式，无法识别返回 null。
+ */
+export async function sniffMediaFormat(buffer, mediaType) {
+  if (!buffer || buffer.length === 0) return null
+
+  if (mediaType === 'image') {
+    try {
+      // 注意 metadata() 返回 Promise，必须 await（否则嗅探结果恒为空导致全部误拒）
+      const meta = await sharp(buffer, { animated: true }).metadata()
+      if (meta?.format) return normalizeExtension(meta.format)
+    } catch {
+      // sharp 无法解析：ico/cur 特例（sharp 不支持）
+      if (buffer.length > 4 && buffer[0] === 0 && buffer[1] === 0 && buffer[2] === 1 && buffer[3] === 0) return 'ico'
+      if (buffer.length > 4 && buffer[0] === 0 && buffer[1] === 0 && buffer[2] === 2 && buffer[3] === 0) return 'ico'
+      return null
+    }
+    return null
+  }
+
+  if (mediaType === 'video') {
+    // ISO BMFF（mp4/mov）：前 4 字节 size + 'ftyp'
+    if (buffer.length > 12 && buffer.toString('ascii', 4, 8) === 'ftyp') return 'mp4'
+    // Matroska/WebM：EBML magic 1A 45 DF A3
+    if (buffer.length > 4 && buffer[0] === 0x1a && buffer[1] === 0x45 && buffer[2] === 0xdf && buffer[3] === 0xa3) return 'webm'
+    return null
+  }
+
+  return null
+}
+
+export async function validateMediaByConfig({ file, role = USER_ROLES.ANONYMOUS, config, allowAnonymousUpload }) {
   const extension = normalizeExtension(getExtension(file.originalFilename || ''))
   const mediaTypeByExt = getMediaTypeByExtension(extension)
-  const mediaTypeByMime = getMediaTypeByMime(file.mimetype || '')
+  const declaredMime = normalizeMime(file.mimetype || '')
+  const expectedMime = getMimeTypeByExtension(extension)
 
   if (role === USER_ROLES.ANONYMOUS && !allowAnonymousUpload) {
     throw createError({ statusCode: 403, message: '当前未开放匿名公开上传' })
@@ -84,17 +129,31 @@ export function validateMediaByConfig({ file, role = USER_ROLES.ANONYMOUS, confi
     throw createError({ statusCode: 400, message: `不支持的媒体格式：${extension || 'unknown'}` })
   }
 
-  if (mediaTypeByExt === 'unknown' || mediaTypeByMime === 'unknown') {
+  if (mediaTypeByExt === 'unknown') {
     throw createError({ statusCode: 400, message: '无法识别的媒体类型' })
   }
 
-  if (mediaTypeByExt !== mediaTypeByMime) {
-    throw createError({ statusCode: 400, message: '文件扩展名与 MIME 类型不匹配' })
+  // MIME 与扩展名精确匹配（此前仅比对"大类"，.png 声明 image/jpeg 也能通过）
+  if (declaredMime && declaredMime !== expectedMime) {
+    throw createError({ statusCode: 400, message: `文件扩展名与 MIME 类型不匹配（.${extension} 应为 ${expectedMime}）` })
   }
 
   const maxSize = getMaxFileSizeForRole(config, role)
   if (file.size > maxSize) {
     throw createError({ statusCode: 400, message: `文件大小超过限制（最大 ${Math.round(maxSize / 1024 / 1024)}MB）` })
+  }
+
+  // 内容嗅探：真实格式必须与声明扩展名一致，防止任意字节伪装成媒体入库。
+  // apng 的 sharp 嗅探结果为 png，视为等价格式。
+  const FORMAT_EQUIV = { apng: 'png' }
+  const sniffed = await sniffMediaFormat(file.buffer, mediaTypeByExt)
+  const sniffedEquiv = sniffed ? (FORMAT_EQUIV[sniffed] || sniffed) : null
+  const extensionEquiv = FORMAT_EQUIV[extension] || extension
+  if (!sniffed || sniffedEquiv !== extensionEquiv) {
+    throw createError({
+      statusCode: 400,
+      message: `文件内容与声明的格式不符（检测到：${sniffed || '无法识别'}，声明：${extension}）`
+    })
   }
 
   return {
@@ -137,7 +196,8 @@ export async function createMediaRecord({
     coverUrl = `/i/${uuid}.${finalFormat}`
   } else {
     coverUrl = `/i/${uuid}.${finalFormat}`
-    poster = coverUrl
+    // 视频不设置 poster（首帧由浏览器自行渲染，避免 poster 指向视频自身的无效引用）
+    poster = ''
   }
 
   const filename = `${uuid}.${finalFormat}`
@@ -338,7 +398,8 @@ export async function getMediaStats() {
   const deletedMedia = allMedia.filter(item => item.isDeleted)
   const totalSize = allMedia.reduce((sum, item) => sum + (item.size || 0), 0)
   const deletedSize = deletedMedia.reduce((sum, item) => sum + (item.size || 0), 0)
-  const moderatedMedia = allMedia.filter(item => item.mediaType === 'image' && item.moderationChecked)
+  // 仅统计真正送检完成的（moderationStatus=completed），未启用审核时不再虚报
+  const moderatedMedia = allMedia.filter(item => item.moderationStatus === 'completed')
   const nsfwMedia = allMedia.filter(item => item.isNsfw)
   const nsfwRate = moderatedMedia.length > 0 ? Number(((nsfwMedia.length / moderatedMedia.length) * 100).toFixed(2)) : 0
 

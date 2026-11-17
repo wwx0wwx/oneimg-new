@@ -59,7 +59,8 @@
       <div class="flex items-center justify-between gap-4">
         <div class="flex items-center gap-3 flex-1 min-w-0">
           <Icon name="heroicons:megaphone" class="w-5 h-5 flex-shrink-0" />
-          <div class="announcement-text truncate-content">{{ content }}</div>
+          <!-- 横幅同样渲染服务端净化后的 HTML（与弹窗一致，避免显示源码标签） -->
+          <div class="announcement-text truncate-content" v-html="content"></div>
         </div>
         <button
           @click="close"

@@ -92,6 +92,12 @@ export function canManageMedia(user, media) {
 
 export function canViewMedia(user, media) {
   if (!media || media.isDeleted || media.isNsfw) return false
+  // 审核进行中（pending）：先隐藏后审核，仅所有者与管理员可见，
+  // 消除"上传即刻公开、审核结果出来前违规内容可被任意访问"的暴露窗口
+  if (media.moderationStatus === 'pending') {
+    if (!user) return false
+    return isAdminUser(user) || media.ownerId === user._id
+  }
   if (media.visibility !== MEDIA_VISIBILITY.PRIVATE) return true
   if (!user) return false
   return isAdminUser(user) || media.ownerId === user._id

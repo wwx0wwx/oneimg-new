@@ -138,7 +138,7 @@ export async function importMediaFromUrl({ event, url, owner, ownerRole, uploade
     size: buffer.length
   }
 
-  validateMediaByConfig({
+  await validateMediaByConfig({
     file,
     role: ownerRole,
     config: mediaConfig,

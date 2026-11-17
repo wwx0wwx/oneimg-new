@@ -5,6 +5,7 @@ import { getMediaConfig } from '../../utils/mediaConfig.js'
 import { validateMediaByConfig, createMediaRecord } from '../../utils/mediaService.js'
 import { USER_ROLES, requireAuthUser, resolveUploadRole } from '../../utils/auth.js'
 import { checkPrivateRateLimit } from '../../utils/rateLimit.js'
+import { isBlacklisted } from '../../utils/ipBlacklist.js'
 
 // 与管理员最大上传限制对齐（角色限额由 validateMediaByConfig 统一校验），
 // 此处仅做硬上限兜底，避免 base64 载荷无界膨胀
@@ -33,6 +34,12 @@ function parseBase64Media(base64String) {
       'video/quicktime': 'mov'
     }
     format = mimeToExt[mimeType] || 'png'
+  }
+
+  // 先按 base64 字符长度估算解码后大小（约 3/4），超限直接拒绝，
+  // 避免"先解码最多 ~133MB 进内存、再检查"的内存尖峰
+  if (base64Data.length > Math.ceil(MAX_BASE64_SIZE / 0.75)) {
+    throw new Error(`base64 媒体大小超过限制（最大 ${Math.round(MAX_BASE64_SIZE / 1024 / 1024)}MB）`)
   }
 
   const buffer = Buffer.from(base64Data, 'base64')
@@ -103,6 +110,11 @@ export default defineEventHandler(async (event) => {
 
   try {
     const { ownerUser, role, uploadedByType, apiKeyId } = await resolveUploadOwner(event)
+
+    // IP 黑名单同样约束登录上传与 API Key 上传（此前只挡匿名上传）
+    if (await isBlacklisted(clientIP)) {
+      throw createError({ statusCode: 403, message: '您的 IP 已被禁止上传' })
+    }
     const uploadConfigDoc = await db.settings.findOne({ key: 'privateApiConfig' })
     const uploadConfig = uploadConfigDoc?.value || {}
     const mediaConfig = await getMediaConfig()
@@ -111,6 +123,11 @@ export default defineEventHandler(async (event) => {
     if (!rateLimitResult.allowed) {
       throw createError({ statusCode: 429, message: `请求过于频繁，请 ${rateLimitResult.retryAfter} 秒后重试` })
     }
+
+    // 内容审核配置统一读取 publicApiConfig.contentSafety（审核队列同源），
+    // 修复此前误读 privateApiConfig.contentSafety（不存在）导致登录上传永不审核
+    const moderationConfigDoc = await db.settings.findOne({ key: 'publicApiConfig' })
+    const moderationEnabled = moderationConfigDoc?.value?.contentSafety?.enabled === true
 
     let file = null
     const contentType = getHeader(event, 'content-type') || ''
@@ -145,7 +162,7 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    validateMediaByConfig({
+    await validateMediaByConfig({
       file,
       role,
       config: mediaConfig,
@@ -159,7 +176,7 @@ export default defineEventHandler(async (event) => {
       uploadedByType,
       visibility: mediaConfig.defaultUserVisibility || 'private',
       uploadConfig,
-      enableModeration: uploadConfig.contentSafety?.enabled === true,
+      enableModeration: moderationEnabled,
       apiKeyId
     })
 

@@ -59,7 +59,7 @@ export default defineNuxtConfig({
       // 完整 nonce 方案待后续版本。SVG 直链由 /i/ 处理器下发更严格的专属 CSP。
       '/**': {
         headers: {
-          'Content-Security-Policy': "default-src 'self'; img-src 'self' data: blob: https: http:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+          'Content-Security-Policy': "default-src 'self'; img-src 'self' data: blob: https: http:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://api.iconify.design; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
         }
       }
     },

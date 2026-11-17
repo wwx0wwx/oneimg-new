@@ -1,6 +1,6 @@
 import { requireAdmin } from '../../utils/auth.js'
 import { saveNotificationConfig, getNotificationConfig, NOTIFICATION_TYPES, NOTIFICATION_METHODS } from '../../utils/notification.js'
-import { isMaskedSecret } from '../../utils/secretBox.js'
+import { isMaskedSecret, maskSecret } from '../../utils/secretBox.js'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -65,10 +65,17 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    // 响应与 GET 一律脱敏回显（config 中的密钥为明文/解密值，不可直接返回）
+    const maskedConfig = {
+      ...config,
+      telegram: { ...config.telegram, token: maskSecret(config.telegram.token) },
+      email: { ...config.email, pass: maskSecret(config.email.pass) },
+      serverchan: { ...config.serverchan, sendKey: maskSecret(config.serverchan.sendKey) }
+    }
     return {
       success: true,
       message: '通知配置已保存',
-      data: config
+      data: maskedConfig
     }
   } catch (error) {
     if (error.statusCode) {

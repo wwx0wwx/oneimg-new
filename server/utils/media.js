@@ -209,7 +209,8 @@ export function toMediaRecord(record = {}) {
     coverUrl,
     mimeType: record.mimeType || getMimeTypeByExtension(ext),
     duration: record.duration || 0,
-    poster: record.poster || (mediaType === 'video' ? coverUrl : ''),
+    // 视频 poster 不再指向视频自身（poster 需要图片，指向 .mp4 无效且引发元数据预载流量）
+    poster: record.poster || '',
     ...owner
   }
 }

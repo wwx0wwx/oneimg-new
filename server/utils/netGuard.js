@@ -1,5 +1,7 @@
 import dns from 'dns/promises'
 import net from 'net'
+import https from 'https'
+import http from 'http'
 
 /**
  * 出站网络防护（共享工具）：
@@ -39,11 +41,18 @@ export function isPrivateIp(ip = '') {
       || (a === 169 && b === 254)                    // 169.254.0.0/16 link-local（含云元数据）
       || (a === 172 && b >= 16 && b <= 31)           // 172.16.0.0/12
       || (a === 192 && b === 168)                    // 192.168.0.0/16
+      || (a >= 224 && a <= 239)                      // 224.0.0.0/4 组播
+      || (a >= 240 && a <= 255)                      // 240.0.0.0/4 保留（含 255.255.255.255）
+      || (a === 192 && b === 0)                      // 192.0.0.0/24 IETF 协议分配（含 192.0.2.0/24 TEST-NET）
+      || (a === 198 && (b === 18 || b === 19))       // 198.18.0.0/15 基准测试
   }
 
   // IPv6
   return normalized === '::' || normalized === '::1'          // 未指定/回环
-    || normalized.startsWith('::ffff:0:')                      // NAT64 ::ffff:0:0/96 映射段
+    || normalized.startsWith('::ffff:0:')                      // ::ffff:0:0/96 映射段
+    || normalized.startsWith('2002:')                          // 2002::/16 6to4（可编码任意 IPv4）
+    || normalized.startsWith('64:ff9b:')                       // 64:ff9b::/96 NAT64（可映射 IPv4）
+    || /^::[0-9]{1,3}(\.[0-9]{1,3}){3}$/.test(normalized)      // IPv4-compatible ::a.b.c.d（::/96，已废弃）
     || normalized.startsWith('fc') || normalized.startsWith('fd')  // ULA fc00::/7
     || normalized.startsWith('fe80:')                          // link-local
     || normalized.startsWith('fec0:')                          // site-local（已废弃但仍应拒绝）
@@ -101,3 +110,65 @@ export async function assertSafeOutboundUrl(rawUrl) {
 }
 
 export { normalizeIpForCheck }
+
+
+/**
+ * 固定 IP 的出站请求（与 URL 导入同标准）：
+ * 校验目标地址后将连接固定到已验证的 IP（lookup 钩子），消除"先校验后解析"
+ * 的 TOCTOU 窗口；带超时与响应大小上限。适用于 Webhook、内容安全检测等
+ * 管理员可配置的出站目标。
+ */
+export function pinnedFetch(rawUrl, { method = 'GET', headers = {}, body = null, timeoutMs = 15000, maxBytes = 10 * 1024 * 1024 } = {}) {
+  return new Promise((resolve, reject) => {
+    (async () => {
+      let url
+      try {
+        url = new URL(String(rawUrl))
+      } catch {
+        reject(new Error('无效的 URL'))
+        return
+      }
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        reject(new Error('仅允许 http/https 协议'))
+        return
+      }
+
+      let addr
+      try {
+        addr = await resolveOutboundAddr(url.hostname)
+      } catch (err) {
+        reject(err)
+        return
+      }
+
+      const client = url.protocol === 'https:' ? https : http
+      const pinnedLookup = (_host, _opts, cb) => cb(null, [{ address: addr.ip, family: addr.family }])
+
+      const req = client.request(url, { method, headers, lookup: pinnedLookup }, (res) => {
+        const chunks = []
+        let received = 0
+        res.on('data', (chunk) => {
+          received += chunk.length
+          if (received > maxBytes) {
+            req.destroy()
+            reject(new Error('响应体积超过上限'))
+            return
+          }
+          chunks.push(chunk)
+        })
+        res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks) }))
+        res.on('error', reject)
+      })
+
+      req.setTimeout(timeoutMs, () => {
+        req.destroy()
+        reject(new Error('请求超时'))
+      })
+      req.on('error', reject)
+      if (body !== null && body !== undefined) {
+        req.write(body)
+      }
+      req.end()
+    })()
+  })
+}
