@@ -11,13 +11,18 @@
  *   ONEIMG_DATA_DIR=/app node scripts/purge-legacy-keys.mjs
  *   systemctl start oneimg
  *
+ * 说明：脚本会保留 settings.db 的原属主与权限（NeDB compact 以新 inode
+ * 重写文件）；若服务以 www-data 等低权限用户运行，以 root 执行本脚本
+ * 也安全。最稳妥的方式是以服务同一用户执行：
+ *   sudo -u www-data ONEIMG_DATA_DIR=/app node scripts/purge-legacy-keys.mjs
+ *
  * 注意：出清后如需回滚到 v2.1.x 之前的版本，旧版本将读到默认配置
  * （uploadPolicy 键仍在，v2.1.x 可正常读取；v1.x 读不到旧键）。
  * 执行前建议备份 settings.db。
  */
 import Datastore from '@seald-io/nedb'
 import { join } from 'path'
-import { copyFileSync, existsSync } from 'fs'
+import { copyFileSync, existsSync, statSync, chownSync, chmodSync } from 'fs'
 
 const LEGACY_KEYS = ['mediaConfig', 'publicApiConfig', 'privateApiConfig']
 const dataDir = process.env.ONEIMG_DATA_DIR
@@ -29,6 +34,11 @@ if (!existsSync(settingsFile)) {
   console.error(`未找到 ${settingsFile}（检查 ONEIMG_DATA_DIR 是否正确）`)
   process.exit(1)
 }
+
+// 记录原文件属主/权限：NeDB compact 会以新 inode 重写文件，
+// 服务以低权限用户（如 www-data）运行时必须恢复属主，否则写入 EACCES
+// 会卡死 NeDB 持久化队列（所有后续查询挂起）
+const { uid, gid, mode } = statSync(settingsFile)
 
 // 自动备份
 const backupFile = settingsFile + '.bak-' + Date.now()
@@ -50,6 +60,11 @@ for (const key of LEGACY_KEYS) {
 }
 
 await store.compactDatafileAsync()
+
+// 恢复文件属主与权限（compact 重写产生的新 inode 继承了当前用户的属主）
+chownSync(settingsFile, uid, gid)
+chmodSync(settingsFile, mode)
+
 console.log(`\n完成：共删除 ${removed} 条旧配置记录`)
 console.log(`备份：${backupFile}`)
 console.log('现在可以启动应用：systemctl start oneimg')

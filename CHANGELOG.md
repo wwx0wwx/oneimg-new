@@ -1,5 +1,11 @@
 ## Changelog
 
+### 2.2.1
+
+**修复:**
+
+- `scripts/purge-legacy-keys.mjs`：NeDB compact 会以新 inode 重写 settings.db——当脚本以 root 运行而服务以低权限用户（www-data）运行时，新文件属主变为 root，导致服务写入 EACCES 并卡死 NeDB 持久化队列（后续所有 settings 查询挂起）。现于压缩后恢复原属主与权限；README 式用法说明同步更新（并建议以服务同一用户执行）
+
 ### 2.2.0
 
 **清理期（v2.1.0 结构重构的收尾）：**
