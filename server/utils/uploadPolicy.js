@@ -19,12 +19,11 @@ import { getDefaultContentSafetyConfig } from './moderation.js'
  *   contentSafety: { enabled, provider, autoBlacklistIp, providers }
  * }
  *
- * 兼容与回滚策略：
- * - 读取：优先新键；新键不存在时由旧三键即时合并计算（未迁移部署同样正确）
- * - 迁移：启动时幂等落库新键，旧键原样保留
- * - 写入：旧端点（media/config、config/public、config/private）写对应字段域，
- *   并**双写旧键**——任意时刻回滚到 v1.3.3 均可读到一致配置
- * - 已删除死字段（不迁移）：privateApiConfig.maxFileSize、showOnHomepage（无消费方，见 v2.1.0 CHANGELOG）
+ * v2.2 清理期说明：
+ * - 旧三键（mediaConfig/publicApiConfig/privateApiConfig）的读取兜底与写入双写已移除；
+ *   升级路径：v2.2 首次启动时若旧键存在仍会合并迁移一次（此后新键存在即跳过）
+ * - 旧键出清：运行 scripts/purge-legacy-keys.mjs（需停机）
+ * - 自 v2.2 起回滚语义变化：回滚到 v2.1.x 前请先备份（旧键出清后旧版本将读到默认配置）
  */
 
 export const URL_IMPORT_PER_MIN = 10
@@ -134,21 +133,12 @@ function mergeFromLegacy({ mediaConfig = {}, publicApiConfig = {}, privateApiCon
  * 调用方（上传/导入/限速/审核队列/配置端点）统一使用本函数。
  */
 export async function getUploadPolicy() {
-  const [newDoc, mediaDoc, publicDoc, privateDoc] = await Promise.all([
-    db.settings.findOne({ key: 'uploadPolicy' }),
-    db.settings.findOne({ key: 'mediaConfig' }),
-    db.settings.findOne({ key: 'publicApiConfig' }),
-    db.settings.findOne({ key: 'privateApiConfig' })
-  ])
-
-  if (newDoc?.value) {
-    return normalizePolicy(newDoc.value)
+  const doc = await db.settings.findOne({ key: 'uploadPolicy' })
+  if (doc?.value) {
+    return normalizePolicy(doc.value)
   }
-  return mergeFromLegacy({
-    mediaConfig: mediaDoc?.value || {},
-    publicApiConfig: publicDoc?.value || {},
-    privateApiConfig: privateDoc?.value || {}
-  })
+  // 理论上启动迁移保证新键存在；兜底返回默认值并交由下次启动迁移落库
+  return normalizePolicy(DEFAULT_UPLOAD_POLICY)
 }
 
 /** 保存完整 uploadPolicy（规范化后落库） */
@@ -168,8 +158,14 @@ export async function saveUploadPolicy(policy) {
  * 因此检测到"旧键比新键新"（updatedAt 更晚）时重新合并。
  */
 export async function migrateToUploadPolicy() {
-  const [newDoc, mediaDoc, publicDoc, privateDoc] = await Promise.all([
-    db.settings.findOne({ key: 'uploadPolicy' }),
+  // v2.2：新键存在即跳过（旧键不再被读取或双写）；
+  // 新键不存在时由旧键（若在）或默认值生成——覆盖全新安装与 v1.x 升级两种路径
+  const newDoc = await db.settings.findOne({ key: 'uploadPolicy' })
+  if (newDoc?.value) {
+    return { migrated: false }
+  }
+
+  const [mediaDoc, publicDoc, privateDoc] = await Promise.all([
     db.settings.findOne({ key: 'mediaConfig' }),
     db.settings.findOne({ key: 'publicApiConfig' }),
     db.settings.findOne({ key: 'privateApiConfig' })
@@ -180,49 +176,9 @@ export async function migrateToUploadPolicy() {
     publicApiConfig: publicDoc?.value || {},
     privateApiConfig: privateDoc?.value || {}
   })
-
-  // 幂等：新键已存在且与旧键合并结果一致（端点双写保证同步）则跳过。
-  // 内容比较而非时间戳比较——双写时旧键写入略晚于新键，时间比较会误判。
-  if (newDoc?.value && JSON.stringify(normalizePolicy(newDoc.value)) === JSON.stringify(merged)) {
-    return { migrated: false }
-  }
-
   await saveUploadPolicy(merged)
-  console.log('[UploadPolicy] 已由历史配置合并生成统一上传策略（旧配置键保留用于回滚）')
+  console.log('[UploadPolicy] 已生成统一上传策略（v1.x 旧配置已合并，可用 scripts/purge-legacy-keys.mjs 出清）')
   return { migrated: true }
-}
-
-/**
- * 双写旧键：任一域变更时同步对应旧键，保证可随时回滚到 v1.3.3 且配置一致。
- * 由各配置端点在写入后调用。
- */
-export async function syncLegacyKeys(policy) {
-  const now = new Date().toISOString()
-  const mediaValue = {
-    allowAnonymousUpload: policy.allowAnonymousUpload,
-    allowedExtensions: policy.allowedExtensions,
-    anonymousMaxFileSize: policy.sizeLimits.anonymous,
-    userMaxFileSize: policy.sizeLimits.user,
-    adminMaxFileSize: policy.sizeLimits.admin,
-    defaultUserVisibility: policy.defaultUserVisibility
-  }
-  const flatProcessing = processingToFlat(policy.processing)
-  const publicValue = {
-    ...flatProcessing,
-    rateLimit: policy.limits.anonymousPerMin,
-    allowConcurrent: policy.allowConcurrent,
-    contentSafety: policy.contentSafety
-  }
-  const privateValue = {
-    ...flatProcessing,
-    rateLimit: policy.limits.authenticatedPerMin
-  }
-
-  await Promise.all([
-    db.settings.update({ key: 'mediaConfig' }, { $set: { value: mediaValue, updatedAt: now } }, { upsert: true }),
-    db.settings.update({ key: 'publicApiConfig' }, { $set: { value: publicValue, updatedAt: now } }, { upsert: true }),
-    db.settings.update({ key: 'privateApiConfig' }, { $set: { value: privateValue, updatedAt: now } }, { upsert: true })
-  ])
 }
 
 export { processingToFlat, flatToProcessing, mergeFromLegacy }

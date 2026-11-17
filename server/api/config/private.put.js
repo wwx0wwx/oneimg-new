@@ -1,5 +1,5 @@
 import { requireAdmin } from '../../utils/auth.js'
-import { getUploadPolicy, saveUploadPolicy, syncLegacyKeys } from '../../utils/uploadPolicy.js'
+import { getUploadPolicy, saveUploadPolicy } from '../../utils/uploadPolicy.js'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -22,7 +22,6 @@ export default defineEventHandler(async (event) => {
     }
 
     const saved = await saveUploadPolicy(next)
-    await syncLegacyKeys(saved)
 
     return {
       success: true,

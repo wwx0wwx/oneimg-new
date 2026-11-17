@@ -30,15 +30,13 @@ test('策略: 旧端点写 → 新键生效（写新域）', async () => {
   await api('/api/media/config', { method: 'PUT', token, body: { userMaxFileSize: 50 * 1024 * 1024 } })
 })
 
-test('策略: 旧键被双写（回滚一致性）', async () => {
+test('策略: 旧端点视图与新端点同源（v2.2 起无双写，视图均来自 uploadPolicy）', async () => {
   const token = await login()
   await api('/api/media/config', { method: 'PUT', token, body: { allowAnonymousUpload: true } })
   const p = await api('/api/upload-policy', { token })
   assert.equal(p.json.data.allowAnonymousUpload, true)
-  // 双写检查需要读库文件，e2e 环境验证行为等价：旧 GET 端点应读到 true
   const legacy = await api('/api/media/config', { token })
   assert.equal(legacy.json.data.allowAnonymousUpload, true)
-  // 还原关闭
   await api('/api/media/config', { method: 'PUT', token, body: { allowAnonymousUpload: false } })
 })
 

@@ -1,6 +1,6 @@
 import { requireAdmin } from '../../utils/auth.js'
 import { validateProviderConfig, getDefaultContentSafetyConfig } from '../../utils/moderation.js'
-import { getUploadPolicy, saveUploadPolicy, syncLegacyKeys } from '../../utils/uploadPolicy.js'
+import { getUploadPolicy, saveUploadPolicy } from '../../utils/uploadPolicy.js'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -55,7 +55,6 @@ export default defineEventHandler(async (event) => {
     }
 
     const saved = await saveUploadPolicy(next)
-    await syncLegacyKeys(saved)
 
     // 响应保持历史形状
     return {

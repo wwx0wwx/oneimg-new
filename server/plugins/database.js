@@ -2,8 +2,6 @@ import db from '../utils/db.js'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import { v4 as uuidv4 } from 'uuid'
-import { getDefaultContentSafetyConfig } from '../utils/moderation.js'
-import { saveMediaConfig, DEFAULT_MEDIA_CONFIG } from '../utils/mediaConfig.js'
 
 async function initDefaultUser() {
   const existingAdmin = await db.users.findOne({ role: 'admin' })
@@ -66,52 +64,6 @@ async function initDefaultApiKey() {
   }
 }
 
-async function initPublicApiConfig() {
-  const existingConfig = await db.settings.findOne({ key: 'publicApiConfig' })
-  if (!existingConfig) {
-    await db.settings.insert({
-      _id: uuidv4(),
-      key: 'publicApiConfig',
-      value: {
-        // enabled/allowedFormats/maxFileSize 为历史死字段，v1.3.1 已移除：
-        // 匿名上传开关/格式/大小统一由 mediaConfig（媒体策略）管理
-        enableCompression: false,
-        compressionQuality: 80,
-        convertToWebp: false,
-        convertToPng: false,
-        rateLimit: 10,
-        allowConcurrent: false,
-        contentSafety: getDefaultContentSafetyConfig()
-      },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    })
-    console.log('[Database] 公共上传配置已初始化')
-  }
-}
-
-async function initPrivateApiConfig() {
-  const existingConfig = await db.settings.findOne({ key: 'privateApiConfig' })
-  if (!existingConfig) {
-    await db.settings.insert({
-      _id: uuidv4(),
-      key: 'privateApiConfig',
-      value: {
-        maxFileSize: DEFAULT_MEDIA_CONFIG.userMaxFileSize,
-        enableCompression: false,
-        compressionQuality: 80,
-        convertToWebp: false,
-        convertToPng: false,
-        rateLimit: 100,
-        showOnHomepage: false
-      },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    })
-    console.log('[Database] 登录上传配置已初始化')
-  }
-}
-
 async function initAppSettings() {
   const existingSettings = await db.settings.findOne({ key: 'appSettings' })
   if (!existingSettings) {
@@ -136,17 +88,6 @@ async function initAppSettings() {
     })
     console.log('[Database] 应用设置已初始化')
   }
-}
-
-async function initMediaConfig() {
-  const existingConfig = await db.settings.findOne({ key: 'mediaConfig' })
-  if (!existingConfig) {
-    await saveMediaConfig(DEFAULT_MEDIA_CONFIG)
-    console.log('[Database] 媒体配置已初始化')
-    return
-  }
-
-  await saveMediaConfig(existingConfig.value || {})
 }
 
 async function createIndexes() {
@@ -177,10 +118,7 @@ export async function initDatabase() {
     await initDefaultUser()
     await initJwtSecret()
     await initDefaultApiKey()
-    await initPublicApiConfig()
-    await initPrivateApiConfig()
     await initAppSettings()
-    await initMediaConfig()
     // 统一上传策略：由历史三配置键幂等合并生成（旧键保留用于回滚）
     await migrateToUploadPolicy()
     console.log('[Database] 数据库初始化完成')

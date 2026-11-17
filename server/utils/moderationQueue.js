@@ -2,7 +2,7 @@ import db from './db.js'
 import { moderateImage } from './moderation.js'
 import { v4 as uuidv4 } from 'uuid'
 import { addToBlacklist } from './ipBlacklist.js'
-import { sendNsfwNotification } from './notification.js'
+import { sendNsfwNotification } from './notification/index.js'
 
 /**
  * 内容审核任务队列处理器

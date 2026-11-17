@@ -6,7 +6,7 @@ import {
   acquirePublicConcurrency,
   releasePublicConcurrency
 } from '../../utils/rateLimit.js'
-import { sendUploadNotification } from '../../utils/notification.js'
+import { sendUploadNotification } from '../../utils/notification/index.js'
 import { assertAnonymousUploadAllowed, createMediaRecord, validateMediaByConfig } from '../../utils/mediaService.js'
 import { USER_ROLES } from '../../utils/auth.js'
 import { getUploadPolicy, processingToFlat } from '../../utils/uploadPolicy.js'

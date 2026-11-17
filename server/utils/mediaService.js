@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid'
 import sharp from 'sharp'
 import db from './db.js'
 import {
+  UPLOADED_BY_TYPES,
   getExtension,
   normalizeExtension,
   getMediaTypeByExtension,
@@ -198,6 +199,10 @@ export async function createMediaRecord({
 
   const filename = `${uuid}.${finalFormat}`
   await saveUploadedFile(buffer, filename)
+
+  if (!UPLOADED_BY_TYPES.includes(uploadedByType)) {
+    throw createError({ statusCode: 400, message: `无效的上传来源类型：${uploadedByType}` })
+  }
 
   const normalizedOwner = {
     id: owner?.id || null,

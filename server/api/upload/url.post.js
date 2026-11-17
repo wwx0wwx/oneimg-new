@@ -1,7 +1,6 @@
 import db from '../../utils/db.js'
 import { requireAuthUser, getMediaOwnerFromUser, isAdminUser, USER_ROLES } from '../../utils/auth.js'
 import { importMediaFromUrl, MAX_URL_IMPORT_BATCH } from '../../utils/urlImport.js'
-import { getMediaConfig } from '../../utils/mediaConfig.js'
 import { getUploadPolicy, processingToFlat } from '../../utils/uploadPolicy.js'
 import { checkRateLimit } from '../../utils/rateLimit.js'
 import { isBlacklisted } from '../../utils/ipBlacklist.js'

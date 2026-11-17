@@ -1,5 +1,5 @@
 import { requireAdmin } from '../../utils/auth.js'
-import { testWebhook, testTelegram, testEmail, testServerChan } from '../../utils/notification.js'
+import { testWebhook, testTelegram, testEmail, testServerChan } from '../../utils/notification/index.js'
 
 export default defineEventHandler(async (event) => {
   try {

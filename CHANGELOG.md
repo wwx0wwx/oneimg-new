@@ -1,5 +1,17 @@
 ## Changelog
 
+### 2.2.0
+
+**清理期（v2.1.0 结构重构的收尾）：**
+
+- **删除 notification.js 转发 shim**：7 处引用全部直指 `notification/index.js`
+- **旧配置键出清**：移除 `mediaConfig`/`publicApiConfig`/`privateApiConfig` 的读取兜底与写入双写；迁移简化为"新键存在即跳过"；数据库不再初始化旧键；提供停机出清脚本 `scripts/purge-legacy-keys.mjs`（自动备份 settings.db 并压缩）
+- **数据文件更名**：`images.db` → `media.db`（启动时一次性复制迁移，旧文件保留为快照）
+- **uploadedByType 枚举化**：`UPLOADED_BY_TYPES` 常量 + 创建入口校验 + 存量记录读取归一化
+- **图标本地化**：`@iconify-json/heroicons` 构建期打包 + `clientBundle` 显式清单——运行时零外联（实测 0 次 iconify 请求）
+- **CSP 收紧（nonce 化）**：移除 `api.iconify.design` 白名单与 `script-src/style-src` 的 `unsafe-inline`——HTML 响应注入一次性 nonce（`server/plugins/csp-nonce.js`），实测 0 违规
+- **回滚语义变化（重要）**：旧配置键出清后，回滚到 v1.x 将读到默认配置；`media.db` 更名后回滚到 v2.1.x 会丢失 v2.2 期间的新增媒体。**回滚前请备份 `db/` 目录**
+
 ### 2.1.0
 
 **结构重构（按重构方案 P0-P5，零行为变化 + 配置模型统一）：**

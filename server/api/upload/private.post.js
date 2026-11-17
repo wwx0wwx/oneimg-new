@@ -1,7 +1,6 @@
 import db from '../../utils/db.js'
 import { parseFormData } from '../../utils/media.js'
-import { sendUploadNotification } from '../../utils/notification.js'
-import { getMediaConfig } from '../../utils/mediaConfig.js'
+import { sendUploadNotification } from '../../utils/notification/index.js'
 import { getUploadPolicy, processingToFlat } from '../../utils/uploadPolicy.js'
 import { validateMediaByConfig, createMediaRecord } from '../../utils/mediaService.js'
 import { USER_ROLES, requireAuthUser, resolveUploadRole } from '../../utils/auth.js'

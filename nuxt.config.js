@@ -19,6 +19,19 @@ export default defineNuxtConfig({
     '@nuxt/icon'
   ],
 
+  // 图标本地化：构建期扫描源码使用的图标并打包进客户端 bundle，
+  // 运行时不再请求 api.iconify.design（离线可用 + CSP 无需外域白名单）
+  icon: {
+    clientBundle: {
+      scan: true,
+      // 显式枚举全部使用中的图标（scan 对 layouts 等目录覆盖不全时兜底），
+      // 新增图标请同步此清单
+      icons: [
+      "heroicons:arrow-down-tray",      "heroicons:arrow-left-on-rectangle",      "heroicons:arrow-path",      "heroicons:arrow-right-on-rectangle",      "heroicons:arrow-up",      "heroicons:bell",      "heroicons:chart-bar",      "heroicons:chat-bubble-left-right",      "heroicons:check-circle",      "heroicons:check-solid",      "heroicons:clipboard-document",      "heroicons:clock",      "heroicons:cloud-arrow-up",      "heroicons:code-bracket",      "heroicons:cog-6-tooth",      "heroicons:envelope",      "heroicons:exclamation-circle",      "heroicons:exclamation-triangle",      "heroicons:eye",      "heroicons:eye-slash",      "heroicons:globe-alt",      "heroicons:home",      "heroicons:information-circle",      "heroicons:link",      "heroicons:lock-closed",      "heroicons:megaphone",      "heroicons:moon-solid",      "heroicons:no-symbol",      "heroicons:paper-airplane",      "heroicons:photo",      "heroicons:play",      "heroicons:rocket-launch",      "heroicons:shield-exclamation",      "heroicons:sparkles",      "heroicons:sun-solid",      "heroicons:trash",      "heroicons:user",      "heroicons:x-circle",      "heroicons:x-mark"
+      ]
+    }
+  },
+
   css: [
     '~/assets/css/main.css'
   ],
@@ -59,7 +72,7 @@ export default defineNuxtConfig({
       // 完整 nonce 方案待后续版本。SVG 直链由 /i/ 处理器下发更严格的专属 CSP。
       '/**': {
         headers: {
-          'Content-Security-Policy': "default-src 'self'; img-src 'self' data: blob: https: http:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://api.iconify.design; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+          'Content-Security-Policy': "default-src 'self'; img-src 'self' data: blob: https: http:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
         }
       }
     },

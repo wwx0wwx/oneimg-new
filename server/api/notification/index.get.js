@@ -1,5 +1,5 @@
 import { requireAdmin } from '../../utils/auth.js'
-import { getNotificationConfigMasked } from '../../utils/notification.js'
+import { getNotificationConfigMasked } from '../../utils/notification/index.js'
 
 export default defineEventHandler(async (event) => {
   try {

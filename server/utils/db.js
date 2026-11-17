@@ -1,6 +1,6 @@
 import Datastore from '@seald-io/nedb'
 import { join } from 'path'
-import { existsSync, mkdirSync } from 'fs'
+import { existsSync, mkdirSync, copyFileSync, unlinkSync } from 'fs'
 
 // 数据目录（按优先级）：
 // 1. ONEIMG_DATA_DIR/db（显式覆盖数据根目录，与上传目录 ONEIMG_DATA_DIR/uploads 对称）
@@ -28,8 +28,18 @@ const users = new Datastore({
   autoload: true
 })
 
+// v2.2：媒体库文件由 images.db 更名为 media.db（业务模型早已统一为 media）。
+// 启动时若旧文件存在且新文件不存在，做一次性复制迁移（旧文件保留为快照，
+// 回滚到 v2.1.x 可用但会丢失 v2.2 期间的增量——回滚前请备份）。
+const mediaDbFile = join(dataDir, 'media.db')
+const legacyImagesDbFile = join(dataDir, 'images.db')
+if (!existsSync(mediaDbFile) && existsSync(legacyImagesDbFile)) {
+  copyFileSync(legacyImagesDbFile, mediaDbFile)
+  console.log('[Database] 已将 images.db 复制迁移为 media.db（旧文件保留为回滚快照）')
+}
+
 const images = new Datastore({
-  filename: join(dataDir, 'images.db'),
+  filename: mediaDbFile,
   autoload: true
 })
 

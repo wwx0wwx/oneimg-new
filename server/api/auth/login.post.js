@@ -1,7 +1,7 @@
 import db from '../../utils/db.js'
 import { generateToken } from '../../utils/jwt.js'
 import bcrypt from 'bcryptjs'
-import { sendLoginNotification } from '../../utils/notification.js'
+import { sendLoginNotification } from '../../utils/notification/index.js'
 import { checkRateLimit } from '../../utils/rateLimit.js'
 
 export default defineEventHandler(async (event) => {

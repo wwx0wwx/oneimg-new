@@ -1,5 +1,5 @@
 import { requireAdmin } from '../../utils/auth.js'
-import { saveNotificationConfig, getNotificationConfig, NOTIFICATION_TYPES, NOTIFICATION_METHODS } from '../../utils/notification.js'
+import { saveNotificationConfig, getNotificationConfig, NOTIFICATION_TYPES, NOTIFICATION_METHODS } from '../../utils/notification/index.js'
 import { isMaskedSecret, maskSecret } from '../../utils/secretBox.js'
 
 export default defineEventHandler(async (event) => {

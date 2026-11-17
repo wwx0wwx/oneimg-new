@@ -19,6 +19,20 @@ export const IMAGE_FORMATS = ['jpeg', 'jpg', 'png', 'gif', 'webp', 'avif', 'svg'
 export const VIDEO_FORMATS = ['mp4', 'webm', 'mov']
 export const ALL_MEDIA_FORMATS = [...IMAGE_FORMATS, ...VIDEO_FORMATS]
 
+// 上传来源枚举（uploadedByType 字段的合法取值）
+export const UPLOADED_BY_TYPES = Object.freeze([
+  'public',       // 匿名公开上传
+  'user',         // 登录用户上传
+  'api-key',      // API Key 上传
+  'url',          // 登录用户 URL 导入
+  'url-api-key'   // API Key URL 导入
+])
+
+// 归一化 uploadedByType：未知/缺失值回落 'user'（历史记录可能存在非常规值）
+export function normalizeUploadedByType(value) {
+  return UPLOADED_BY_TYPES.includes(value) ? value : 'user'
+}
+
 export const MIME_BY_EXT = {
   jpg: 'image/jpeg',
   jpeg: 'image/jpeg',
@@ -228,6 +242,7 @@ export function toMediaRecord(record = {}) {
     mimeType: record.mimeType || getMimeTypeByExtension(ext),
     duration: record.duration || 0,
     poster,
+    uploadedByType: normalizeUploadedByType(record.uploadedByType),
     ...owner
   }
 }
