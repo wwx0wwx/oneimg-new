@@ -53,7 +53,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 const props = defineProps({
   visible: {
     type: Boolean,
@@ -93,15 +93,21 @@ const emit = defineEmits(['close', 'confirm'])
 const confirming = ref(false)
 
 // 防双击双发：确认动作期间禁用按钮
-async function handleConfirm() {
+// L1：Vue emit 同步发射——finally 立即复位 confirming 意味着守卫窗口为零
+// （第二次点击时守卫早已放行）。改为关窗时复位：每次弹窗只许点一次确认。
+// 删除等操作幂等所以此前无害，但这是正确语义。
+function handleConfirm() {
   if (confirming.value) return
   confirming.value = true
-  try {
-    emit('confirm')
-  } finally {
+  emit('confirm')
+}
+
+// 弹窗关闭时复位守卫（下次打开可再点）
+watch(() => props.show, (visible) => {
+  if (!visible) {
     confirming.value = false
   }
-}
+})
 
 const confirmClass = computed(() => {
   const baseClass = props.confirmType === 'danger' ? 'btn-danger' : 'btn-primary'
