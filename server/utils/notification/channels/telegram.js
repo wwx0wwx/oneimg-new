@@ -38,19 +38,6 @@ async function readLocalImage(filename) {
   }
 }
 
-function getExtensionFromContentType(contentType = '') {
-  const map = {
-    'image/jpeg': 'jpg',
-    'image/jpg': 'jpg',
-    'image/png': 'png',
-    'image/gif': 'gif',
-    'image/webp': 'webp',
-    'image/bmp': 'bmp',
-    'image/svg+xml': 'svg'
-  }
-  return map[contentType] || 'jpg'
-}
-
 function createBot(token) {
   const botOptions = {}
   const apiUrl = process.env.TELEGRAM_API_URL

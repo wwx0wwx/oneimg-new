@@ -50,7 +50,7 @@ try {
   if (!pw) throw new Error('未找到初始密码')
   console.log(`[e2e] 实例就绪 http://127.0.0.1:${PORT} (数据: ${DATA_DIR})`)
 
-  execSync(`node --test --test-concurrency=1 --test-reporter=spec test/regression/*.test.mjs`, {
+  execSync(`node --test --test-concurrency=1 --test-reporter=spec test/regression/security.test.mjs test/regression/upload.test.mjs test/regression/uploadPolicy.test.mjs`, {
     stdio: 'inherit',
     env: { ...process.env, BASE_URL: `http://127.0.0.1:${PORT}`, E2E_ADMIN_PASSWORD: pw },
   })

@@ -1,4 +1,5 @@
 import db from '../../utils/db.js'
+import { hashApiKey } from '../../utils/apiKeyHash.js'
 import { getClientIP } from '../../utils/mediaService.js'
 import { parseFormData } from '../../utils/media.js'
 import { sendUploadNotification } from '../../utils/notification/index.js'
@@ -77,7 +78,7 @@ async function resolveUploadOwner(event) {
     throw createError({ statusCode: 401, message: '未登录且缺少 API Key（请通过 X-API-Key 请求头传递）' })
   }
 
-  const keyDoc = await db.apikeys.findOne({ key: apiKey, enabled: true })
+  const keyDoc = await db.apikeys.findOne({ key: hashApiKey(apiKey), enabled: true })
   if (!keyDoc) {
     throw createError({ statusCode: 401, message: 'API Key 无效或已禁用' })
   }

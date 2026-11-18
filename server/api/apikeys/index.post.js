@@ -1,6 +1,7 @@
 import db from '../../utils/db.js'
 import { v4 as uuidv4 } from 'uuid'
 import { requireAdmin } from '../../utils/auth.js'
+import { generateApiKey, hashApiKey } from '../../utils/apiKeyHash.js'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -31,11 +32,12 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const apiKey = `sk-${uuidv4().replace(/-/g, '')}`
+    const apiKey = generateApiKey()  // 明文仅一次性返回
+    const apiKeyHash = hashApiKey(apiKey)
 
     const newKey = {
       _id: uuidv4(),
-      key: apiKey,
+      key: apiKeyHash,  // 库中存哈希
       name,
       isDefault: false,
       enabled: true,

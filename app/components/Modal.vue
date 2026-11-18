@@ -103,7 +103,8 @@ function handleConfirm() {
 }
 
 // 弹窗关闭时复位守卫（下次打开可再点）
-watch(() => props.show, (visible) => {
+// 注意：prop 名是 visible（BUG-1：此前误写 props.show，恒 undefined → 永不触发）
+watch(() => props.visible, (visible) => {
   if (!visible) {
     confirming.value = false
   }

@@ -16,7 +16,12 @@
       </button>
     </div>
 
-    <div class="space-y-3">
+    <div v-if="loading" class="py-8 text-center text-gray-400">加载中...</div>
+        <div v-else-if="users.length === 0" class="py-8 text-center">
+          <Icon name="heroicons:users" class="w-12 h-12 mx-auto text-gray-300 mb-2" />
+          <p class="text-gray-400">暂无用户</p>
+        </div>
+        <div v-else class="space-y-3">
       <div
         v-for="user in users"
         :key="user.id"
@@ -58,6 +63,7 @@ import { useToastStore } from '~/stores/toast'
 import { formatDateTime } from '~/utils/format'
 
 // 用户管理面板：创建普通用户、启停账户
+const loading = ref(true)
 const authStore = useAuthStore()
 const settingsStore = useSettingsStore()
 const toastStore = useToastStore()
@@ -114,5 +120,11 @@ async function toggleUserStatus(user) {
   }
 }
 
-onMounted(loadUsers)
+onMounted(async () => {
+  try {
+    await loadUsers()
+  } finally {
+    loading.value = false
+  }
+})
 </script>

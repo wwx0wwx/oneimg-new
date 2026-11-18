@@ -6,7 +6,6 @@ import {
   getExtension,
   normalizeExtension,
   getMediaTypeByExtension,
-  getMediaTypeByMime,
   getMimeTypeByExtension,
   sanitizeOriginalName,
   saveUploadedFile,

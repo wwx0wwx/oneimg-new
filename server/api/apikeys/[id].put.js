@@ -1,6 +1,7 @@
 import db from '../../utils/db.js'
 import { v4 as uuidv4 } from 'uuid'
 import { requireAdmin } from '../../utils/auth.js'
+import { generateApiKey, hashApiKey } from '../../utils/apiKeyHash.js'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -54,8 +55,10 @@ export default defineEventHandler(async (event) => {
       }
     }
 
+    let newKey = null
     if (regenerate) {
-      updateData.key = `sk-${uuidv4().replace(/-/g, '')}`
+      newKey = generateApiKey()
+      updateData.key = hashApiKey(newKey)  // 库中存哈希
     }
 
     await db.apikeys.update({ _id: id }, { $set: updateData })
@@ -63,13 +66,14 @@ export default defineEventHandler(async (event) => {
 
     // 仅重新生成时一次性返回完整 key（日常更新掩码回显）
     const shouldRevealKey = regenerate === true
+    // regenerate 时返回刚生成的明文（updateData 中存的是哈希，明文只在本次响应中出现）
     const maskedKey = updatedKey.key ? updatedKey.key.slice(0, 7) + '****' + updatedKey.key.slice(-4) : updatedKey.key
     return {
       success: true,
       message: 'API Key 更新成功',
       data: {
         id: updatedKey._id,
-        key: shouldRevealKey ? updatedKey.key : maskedKey,
+        key: shouldRevealKey ? newKey : maskedKey,
         name: updatedKey.name,
         isDefault: updatedKey.isDefault,
         enabled: updatedKey.enabled,

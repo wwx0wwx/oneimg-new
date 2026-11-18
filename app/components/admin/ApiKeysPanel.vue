@@ -5,7 +5,12 @@
       <button @click="showAddKeyModal = true" class="btn-primary text-sm">添加 API Key</button>
     </div>
 
-    <div class="space-y-3">
+    <div v-if="loading" class="py-8 text-center text-gray-400">加载中...</div>
+        <div v-else-if="apiKeys.length === 0" class="py-8 text-center">
+          <Icon name="heroicons:key" class="w-12 h-12 mx-auto text-gray-300 mb-2" />
+          <p class="text-gray-400">暂无 API Key，点击上方按钮创建</p>
+        </div>
+        <div v-else class="space-y-3">
       <div
         v-for="key in apiKeys"
         :key="key.id"
@@ -93,6 +98,7 @@ import { formatDateTime } from '~/utils/format'
 import { copyToClipboard } from '~/utils/clipboard'
 
 // API Key 管理面板：列表 / 创建（绑定归属用户）/ 刷新 / 删除
+const loading = ref(true)
 const settingsStore = useSettingsStore()
 const toastStore = useToastStore()
 
@@ -189,10 +195,14 @@ async function deleteApiKey() {
 }
 
 onMounted(async () => {
-  await settingsStore.fetchApiKeys()
-  users.value = await settingsStore.fetchUsers()
-  if (!newKeyOwnerUserId.value) {
-    newKeyOwnerUserId.value = bindableUsers.value[0]?.id || ''
+  try {
+    await settingsStore.fetchApiKeys()
+    users.value = await settingsStore.fetchUsers()
+    if (!newKeyOwnerUserId.value) {
+      newKeyOwnerUserId.value = bindableUsers.value[0]?.id || ''
+    }
+  } finally {
+    loading.value = false
   }
 })
 </script>
