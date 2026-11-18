@@ -39,7 +39,7 @@
             </button>
             <button
               v-if="showConfirm"
-              @click="confirm"
+              @click="handleConfirm"
               :class="confirmClass"
               :disabled="confirmDisabled || confirming"
             >

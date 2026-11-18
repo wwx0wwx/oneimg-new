@@ -5,7 +5,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     const token = localStorage.getItem('token')
 
     if (!token) {
-      return navigateTo('/login', { redirect: { path: to.path, query: to.query } })
+      return navigateTo(`/login?redirect=${encodeURIComponent(to.fullPath)}`)
     }
 
     // 管理员专属页面：普通用户重定向首页（前端引导；服务端接口有 403 兜底）

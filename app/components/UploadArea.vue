@@ -575,8 +575,8 @@ async function handleUrlUpload() {
   }))
 
   const abortController = new AbortController()
-  // 路由离开时中断 SSE 流，避免 reader 更新已卸载组件
-  onUnmounted(() => abortController.abort())
+  // U2：赋给组件级变量，onUnmounted 统一 abort（此前声明后从未赋值）
+  sseAbortController = abortController
 
   try {
     // 使用fetch发送POST请求，然后读取SSE响应
@@ -638,6 +638,7 @@ async function handleUrlUpload() {
     toastStore.error(error.message || '上传失败，请稍后重试')
   } finally {
     urlUploadInProgress.value = false
+    sseAbortController = null
     if (urlImportSuccessCount.value > 0) {
       await mediaStore.fetchMedia(true)
     }

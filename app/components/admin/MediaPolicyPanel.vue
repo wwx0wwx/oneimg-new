@@ -223,6 +223,9 @@ const adminMaxSizeMB = computed({
   set: (val) => { policy.form.adminMaxFileSize = val * 1024 * 1024 }
 })
 
+// 转换格式开关（匿名上传配置与登录上传配置共享同一 composable——N1：此前漏接此组件）
+const { toggleConvertFormat } = useConvertToggle(behavior.form)
+
 onMounted(() => {
   policy.load()
   behavior.load()

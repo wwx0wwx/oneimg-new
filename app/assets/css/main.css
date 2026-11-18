@@ -147,9 +147,7 @@ select.input {
 
 
 /* 移动端适配 */
-@media (max-width: 640px) {
-  
-  }
+
 
 /* 暗黑模式下的 focus ring offset */
 .dark .btn:focus {
